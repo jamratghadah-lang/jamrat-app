@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>تسجيل الدخول - جمرة غضى</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Tajawal, Cairo, sans-serif;
+    background: #FFFBF5;
+    color: #2C2C2C;
+    min-height: 100vh;
+  }
+  header {
+    background: #fff;
+    border-bottom: 1px solid #F0E6D6;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header .brand { display: flex; align-items: center; gap: 10px; }
+  header .logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg,#E8C88A,#C5A059);
+    color: #fff; display:flex; align-items:center; justify-content:center;
+    font-weight: bold; flex-shrink: 0;
+  }
+  header h1 { font-size: 14px; margin: 0; }
+  header p { font-size: 10px; margin: 0; opacity: .6; }
+  header .switchBtn {
+    font-size: 11px; background: #FFFBF5; border: 1px solid #EDE3D3;
+    border-radius: 20px; padding: 6px 12px; cursor: pointer;
+  }
+  main { max-width: 520px; margin: 0 auto; padding: 20px 16px 60px; }
+  .card {
+    background: #fff;
+    border: 1px solid #F0E6D6;
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h3 { font-size: 14px; margin: 0 0 10px; display:flex; align-items:center; gap:6px; }
+  .muted { font-size: 12px; opacity: .6; line-height: 1.8; margin: 0 0 14px; }
+  input[type=text], input[type=password] {
+    width: 100%;
+    padding: 15px;
+    border-radius: 16px;
+    border: 2px solid #C5A059;
+    background: #FFFBF5;
+    font-size: 16px;
+    text-align: center;
+    outline: none;
+    direction: ltr;
+    margin-bottom: 12px;
+  }
+  button {
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    border: none;
+    background: #2C2C2C;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.secondary {
+    background: #FFFBF5;
+    color: #2C2C2C;
+    border: 1px solid #EDE3D3;
+    margin-top: 8px;
+  }
+  button.danger {
+    background: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FCA5A5;
+    margin-top: 8px;
+  }
+  .result {
+    margin-top: 14px;
+    padding: 16px;
+    border-radius: 14px;
+    text-align: center;
+  }
+  .result.ok { background: #ECFDF5; border: 1px solid #86EFAC; }
+  .result.repeat { background: #FFFBEB; border: 1px solid #FCD34D; }
+  .result.fail { background: #FEF2F2; border: 1px solid #FCA5A5; }
+  .result .icon { font-size: 26px; margin-bottom: 4px; }
+  .result .name { font-size: 13px; margin-top: 4px; }
+  .result .title { font-weight: bold; font-size: 14px; }
+  .result.ok .title { color: #059669; }
+  .result.repeat .title { color: #B45309; }
+  .result.fail .title { color: #DC2626; }
+  .counter { font-size: 13px; font-weight: 600; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center; }
+  .counter .live { font-size: 10px; opacity:.5; font-weight: normal; }
+  .list { max-height: 260px; overflow-y: auto; }
+  .list-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; padding: 8px 0; border-bottom: 1px solid #F5EFE6;
+  }
+  .empty-state { text-align: center; padding: 30px 16px; opacity: .6; font-size: 13px; }
+  .err { color: #DC2626; font-size: 12px; text-align: center; margin-top: 10px; }
+  .badge {
+    display: inline-block; font-size: 10px; padding: 3px 10px; border-radius: 20px;
+    background: #FFFBF5; border: 1px solid #EDE3D3;
+  }
+</style>
+</head>
+<body>
+<div id="__gate__" style="position:fixed;inset:0;z-index:999999;background:#FFFBF5;display:flex;align-items:center;justify-content:center;">
+  <div style="background:#fff;border:1px solid #F0E6D6;border-radius:20px;padding:32px;max-width:320px;width:90%;text-align:center;">
+    <div style="font-weight:bold;font-size:16px;margin-bottom:14px;">🔒 تسجيل الدخول - جمرة غضى</div>
+    <input id="__gate_pw__" type="password" placeholder="كلمة المرور" style="width:100%;padding:14px;border-radius:14px;border:2px solid #C5A059;background:#FFFBF5;font-size:15px;text-align:center;outline:none;margin-bottom:10px;box-sizing:border-box;" autofocus>
+    <button id="__gate_btn__" style="width:100%;padding:12px;border-radius:12px;border:none;background:#2C2C2C;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">دخول</button>
+    <div id="__gate_err__" style="color:#DC2626;font-size:12px;margin-top:10px;display:none;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY = "jamrat_checkin_gate_ok";
+  if (sessionStorage.getItem(KEY) === "1") { document.getElementById("__gate__").remove(); return; }
+  var btn = document.getElementById("__gate_btn__");
+  async function check(){
+    var pw = document.getElementById("__gate_pw__").value;
+    var errEl = document.getElementById("__gate_err__");
+    errEl.style.display = "none";
+    btn.disabled = true; btn.textContent = "...";
+    try {
+      var res = await fetch("/.netlify/functions/auth-check", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({scope:"checkin", password:pw})
+      });
+      var data = await res.json().catch(function(){ return {}; });
+      if (res.ok && data.ok) {
+        sessionStorage.setItem(KEY, "1");
+        document.getElementById("__gate__").remove();
+      } else {
+        errEl.textContent = data.message || "تعذر التحقق";
+        errEl.style.display = "block";
+      }
+    } catch(e) {
+      errEl.textContent = "تعذر الاتصال بالسيرفر";
+      errEl.style.display = "block";
+    }
+    btn.disabled = false; btn.textContent = "دخول";
+  }
+  btn.addEventListener("click", check);
+  document.getElementById("__gate_pw__").addEventListener("keydown", function(e){ if (e.key === "Enter") check(); });
+})();
+</script>
+<header>
+  <div class="brand">
+    <div class="logo">J</div>
+    <div>
+      <h1>جمرة غضى - تسجيل الدخول</h1>
+      <p id="subLabel">شاشة مسؤولي الاستقبال فقط</p>
+    </div>
+  </div>
+  <button class="switchBtn" id="switchEventBtn" style="display:none;">تغيير المناسبة</button>
+</header>
+
+<main id="app"></main>
+
+<script>
+const FN_BASE = "/.netlify/functions"; // إذا مستضافة بدومين ثاني عن التطبيق الرئيسي، غيّري هذا لرابط الفنكشنز الكامل
+const LAST_EVENT_KEY = "jamrat_checkin_last_event";
+
+let eventCode = localStorage.getItem(LAST_EVENT_KEY) || "";
+let lastResult = null;
+let statusData = null;
+let loading = false;
+let errMsg = "";
+
+function el(id) { return document.getElementById(id); }
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+async function api(path, opts) {
+  const res = await fetch(FN_BASE + path, opts);
+  let data = {};
+  try { data = await res.json(); } catch {}
+  return { ok: res.ok, data };
+}
+
+function render() {
+  el("switchEventBtn").style.display = eventCode ? "inline-block" : "none";
+  el("subLabel").textContent = eventCode ? "المناسبة: " + eventCode : "شاشة مسؤولي الاستقبال فقط";
+  if (!eventCode) return renderEventScreen();
+  return renderCheckinScreen();
+}
+
+function renderEventScreen() {
+  const app = el("app");
+  app.innerHTML = `
+    <div class="card">
+      <h3>🎉 أدخلي رمز المناسبة</h3>
+      <p class="muted">كل مناسبة لها رمز خاص فيها (تحصلينه من لوحة التحكم الرئيسية وقت ما ترفعين قائمة المدعوين للسيرفر). نفس الرمز تعطينه لكل الأجهزة اللي بتستخدم بنفس المناسبة، حتى لو أكثر من باب دخول.</p>
+      <input type="text" id="eventCodeInput" placeholder="رمز المناسبة" autofocus autocomplete="off">
+      <button id="enterBtn">دخول</button>
+      ${errMsg ? `<div class="err">${escapeHtml(errMsg)}</div>` : ""}
+    </div>
+  `;
+  el("eventCodeInput").addEventListener("keydown", (e) => { if (e.key === "Enter") enterEvent(); });
+  el("enterBtn").addEventListener("click", enterEvent);
+}
+
+async function enterEvent() {
+  const val = (el("eventCodeInput").value || "").trim();
+  if (!val) return;
+  errMsg = "";
+  loading = true;
+  const { ok, data } = await api("/event-status?eventCode=" + encodeURIComponent(val), { method: "GET" });
+  loading = false;
+  if (!ok || !data.ok) {
+    errMsg = "ما لقينا مناسبة بهذا الرمز. تأكدي إنك رفعتي القائمة من لوحة التحكم أول، أو تأكدي من الرمز.";
+    render();
+    return;
+  }
+  eventCode = val;
+  localStorage.setItem(LAST_EVENT_KEY, val);
+  statusData = data;
+  lastResult = null;
+  render();
+}
+
+function renderCheckinScreen() {
+  const app = el("app");
+  const arrivedCount = statusData ? statusData.arrivedCount : "…";
+  const total = statusData ? statusData.total : "…";
+
+  let resultHtml = "";
+  if (lastResult) {
+    if (lastResult.status === "ok") {
+      resultHtml = `<div class="result ok"><div class="icon">✅</div><div class="title">دخول ناجح</div><div class="name">${escapeHtml(lastResult.guest.name)}</div></div>`;
+    } else if (lastResult.status === "repeat") {
+      resultHtml = `<div class="result repeat"><div class="icon">⚠️</div><div class="title">دخلت الصالة قبل كذا</div><div class="name">${escapeHtml(lastResult.guest.name)}</div></div>`;
+    } else if (lastResult.status === "fail") {
+      resultHtml = `<div class="result fail"><div class="icon">❌</div><div class="title">كود غير صحيح</div><div class="name">هذا الكود مو موجود بقائمة هذي المناسبة</div></div>`;
+    } else if (lastResult.status === "error") {
+      resultHtml = `<div class="result fail"><div class="icon">📡</div><div class="title">تعذر الاتصال بالسيرفر</div><div class="name">تأكدي من الإنترنت وحاولي مرة ثانية</div></div>`;
+    }
+  }
+
+  const arrivedList = (statusData && statusData.arrived) || [];
+  const listHtml = arrivedList.length
+    ? arrivedList.map(g => `<div class="list-row"><span>${escapeHtml(g.name)}</span><span>✓</span></div>`).join("")
+    : `<div class="empty-state">ما وصل أحد لسا</div>`;
+
+  app.innerHTML = `
+    <div class="card">
+      <h3>🎫 تسجيل الدخول <span class="badge">${escapeHtml(eventCode)}</span></h3>
+      <p class="muted">امسحي QR الشخصي بجهاز قراءة باركود، أو اكتبي الكود يدوياً واضغطي Enter.</p>
+      <input type="text" id="codeInput" placeholder="امسحي أو اكتبي الكود هنا..." autofocus autocomplete="off" ${loading ? "disabled" : ""}>
+      <button id="checkBtn" ${loading ? "disabled" : ""}>${loading ? "..." : "تحقق من الكود"}</button>
+      ${resultHtml}
+    </div>
+    <div class="card">
+      <div class="counter"><span>${arrivedCount} من ${total} وصلوا</span><span class="live" id="refreshLabel">🔄 تحديث</span></div>
+      <div class="list">${listHtml}</div>
+    </div>
+    <div class="card">
+      <button class="danger" id="resetBtn">🗑 تصفير هذي المناسبة (بالرقم السري)</button>
+    </div>
+  `;
+
+  const input = el("codeInput");
+  input.focus();
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") checkCode(); });
+  el("checkBtn").addEventListener("click", checkCode);
+  el("refreshLabel").addEventListener("click", refreshStatus);
+  el("resetBtn").addEventListener("click", resetEvent);
+}
+
+async function checkCode() {
+  const input = el("codeInput");
+  const code = (input.value || "").trim();
+  if (!code || loading) return;
+  loading = true;
+  render();
+  const { ok, data } = await api("/event-checkin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eventCode, code }),
+  });
+  loading = false;
+  if (!ok || !data.ok) {
+    lastResult = { status: "error" };
+  } else if (data.status === "no_event") {
+    errMsg = "المناسبة مو موجودة، ممكن انصفرت. سوّي دخول من جديد.";
+    eventCode = "";
+    localStorage.removeItem(LAST_EVENT_KEY);
+    render();
+    return;
+  } else {
+    lastResult = data;
+  }
+  render();
+  await refreshStatus();
+}
+
+async function refreshStatus() {
+  const { ok, data } = await api("/event-status?eventCode=" + encodeURIComponent(eventCode), { method: "GET" });
+  if (ok && data.ok) {
+    statusData = data;
+    render();
+  }
+}
+
+async function resetEvent() {
+  const pin = prompt("اكتبي الرقم السري حق هذي المناسبة عشان تصفّرينها بالكامل (ما يرجع فيه):");
+  if (!pin) return;
+  loading = true;
+  render();
+  const { ok, data } = await api("/event-reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eventCode, pin }),
+  });
+  loading = false;
+  if (ok && data.ok) {
+    alert("تم تصفير المناسبة بنجاح.");
+    eventCode = "";
+    localStorage.removeItem(LAST_EVENT_KEY);
+    statusData = null;
+    lastResult = null;
+  } else {
+    alert((data && data.message) || "تعذر التصفير، تأكدي من الرقم السري");
+  }
+  render();
+}
+
+el("switchEventBtn").addEventListener("click", () => {
+  eventCode = "";
+  localStorage.removeItem(LAST_EVENT_KEY);
+  statusData = null;
+  lastResult = null;
+  errMsg = "";
+  render();
+});
+
+// عند فتح الصفحة، إذا فيه مناسبة محفوظة من قبل بنفس الجهاز، نحاول نرجع لها مباشرة
+(async function init() {
+  if (eventCode) {
+    loading = true;
+    render();
+    const { ok, data } = await api("/event-status?eventCode=" + encodeURIComponent(eventCode), { method: "GET" });
+    loading = false;
+    if (ok && data.ok) {
+      statusData = data;
+    } else {
+      eventCode = "";
+      localStorage.removeItem(LAST_EVENT_KEY);
+    }
+  }
+  render();
+})();
+
+// تحديث تلقائي كل 15 ثانية عشان الشاشة تعكس مسح الأجهزة الثانية بدون ما تحتاجين تضغطين شي
+setInterval(() => { if (eventCode && !loading) refreshStatus(); }, 15000);
+</script>
+</body>
+</html>
