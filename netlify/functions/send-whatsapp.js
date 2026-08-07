@@ -43,70 +43,63 @@ exports.handler = async (event) => {
 
   const apiUrl = `https://graph.facebook.com/v19.0/${phoneId}/messages`;
 
-  // نبني الرسالة حسب اللي متوفر: فيديو حقيقي أولاً، وإلا صورة البطاقة، وإلا نص
-  let body;
-  if (videoUrl) {
-    body = {
-      messaging_product: "whatsapp",
-      to,
-      type: "video",
-      video: {
-        link: videoUrl,
-        caption: (message || "").slice(0, 1024),
-      },
-    };
-  } else if (cardUrl) {
-    body = {
-      messaging_product: "whatsapp",
-      to,
-      type: "image",
-      image: {
-        link: cardUrl,
-        caption: (message || "").slice(0, 1024),
-      },
-    };
-  } else {
-    body = {
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: { body: message || "" },
-    };
-  }
-
-  try {
+  async function sendMsg(msgBody) {
     const res = await fetch(apiUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(msgBody),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
+  }
 
-    if (!res.ok) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ ok: false, message: data?.error?.message || "فشل إرسال الواتساب" }),
-      };
+  // نرسل كل شي موجود فعلياً كرسالة مستقلة: فيديو (لو موجود) + صورة البطاقة
+  // (لو موجودة) + نص الرسالة — بدل ما نختار وحدة بس ونتجاهل الباقي.
+  try {
+    let sentAny = false;
+    let lastError = null;
+
+    if (videoUrl) {
+      const r = await sendMsg({
+        messaging_product: "whatsapp",
+        to,
+        type: "video",
+        video: { link: videoUrl },
+      });
+      if (r.ok) sentAny = true;
+      else lastError = r.data?.error?.message;
     }
 
-    // إذا فيه فيديو، نرسل رسالة نصية ثانية تحتوي بقية الرسالة (لأن الكابشن محدود بـ1024 حرف)
-    if (videoUrl && message && message.length > 1024) {
-      await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to,
-          type: "text",
-          text: { body: message },
-        }),
+    if (cardUrl) {
+      const r = await sendMsg({
+        messaging_product: "whatsapp",
+        to,
+        type: "image",
+        image: { link: cardUrl },
       });
+      if (r.ok) sentAny = true;
+      else lastError = r.data?.error?.message;
+    }
+
+    if (message) {
+      const r = await sendMsg({
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body: message },
+      });
+      if (r.ok) sentAny = true;
+      else lastError = r.data?.error?.message;
+    }
+
+    if (!sentAny) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ ok: false, message: lastError || "فشل إرسال الواتساب" }),
+      };
     }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };

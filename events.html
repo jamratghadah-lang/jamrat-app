@@ -191,6 +191,8 @@ let events = [];
 let loading = true;
 let msg = "";
 let msgType = "";
+let testLoading = false;
+let testResult = null;
 
 async function loadEvents() {
   loading = true; render();
@@ -270,12 +272,37 @@ function eventCardHtml(ev) {
     </div>`;
 }
 
+async function testDailyMessages() {
+  testLoading = true; testResult = null; render();
+  const { ok, data } = await api("/run-daily-messages-now", { method: "POST" });
+  testLoading = false;
+  if (ok && data.ok) {
+    const r = data.sentCount || 0;
+    testResult = {
+      ok: true,
+      text: r > 0
+        ? `تم الفحص ✓ — انبعث ${r} رسالة (تذكير/شكر) لمن حان وقتها اليوم.`
+        : `تم الفحص ✓ — ما فيه أي مناسبة حان وقت تذكيرها أو شكرها اليوم.`,
+    };
+  } else {
+    testResult = { ok: false, text: (data && data.message) || "تعذر تشغيل الفحص" };
+  }
+  render();
+}
+
 function render() {
   const app = el("app");
   const active = events.filter((e) => e.status !== "finished");
   const finished = events.filter((e) => e.status === "finished");
 
   app.innerHTML = `
+    <div class="card">
+      <h3>🧪 اختبار نظام التذكير والشكر</h3>
+      <p class="muted">هذا الزر يشغّل نفس الفحص اللي يصير تلقائي كل يوم، بس فوراً — يفحص كل مناسباتك النشطة ويرسل تذكير/شكر لمن حان وقتها. تقدرين تضغطينه أي وقت تبين تتأكدين النظام شغال. ⚠️ يرسل رسائل حقيقية فعلاً لو فيه مناسبة بتاريخها المناسب اليوم.</p>
+      <button id="testBtn" ${testLoading ? "disabled" : ""}>${testLoading ? "جاري الفحص..." : "🔄 افحصي الآن"}</button>
+      ${testResult ? `<div class="${testResult.ok ? 'ok' : 'err'}">${escapeHtml(testResult.text)}</div>` : ""}
+    </div>
+
     <div class="card">
       <h3>➕ فتح قسم عميلة جديدة</h3>
       <p class="muted">كل عميلة يصير لها قسم مستقل يضل مفتوح لين تخلصين منه (تذكير + شكر) وتضغطين "إنهاء المناسبة".</p>
@@ -305,6 +332,8 @@ function render() {
 
   const createBtn = document.getElementById("createBtn");
   if (createBtn) createBtn.addEventListener("click", createEvent);
+  const testBtn = document.getElementById("testBtn");
+  if (testBtn) testBtn.addEventListener("click", testDailyMessages);
 }
 
 window.setStatus = setStatus;
