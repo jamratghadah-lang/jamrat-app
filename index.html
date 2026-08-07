@@ -6,41 +6,39 @@
 <title>جمرة غضى - إرسال التذكير والشكر</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
-  // تهيئة Firebase باستخدام الاستيراد الديناميكي المعزول بعيداً عن تحويلات Babel للوسوم
-  window.addEventListener('DOMContentLoaded', async () => {
-    try {
-      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-      const { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
-      const { getFirestore, collection, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  // نستخدم dynamic import() داخل سكربت عادي (بدون type="module") عمدًا —
+  // عشان نتجنب أي تعارض بين محوّل Babel التلقائي وسكربتات from type="module"
+  // (هذا بالضبط سبب الخطأ "Cannot use import statement outside a module"
+  // اللي كان يوقف تحميل الصفحة بالكامل).
+  (async function () {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    const { getFirestore, collection, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
-      const firebaseConfig = {
-        apiKey: "AIzaSyAAYOne0CTht9906nStecbqCHkb_CY6glw",
-        authDomain: "jamrat-ghadah.firebaseapp.com",
-        projectId: "jamrat-ghadah",
-        storageBucket: "jamrat-ghadah.appspot.com",
-      };
-      
-      const fbApp = initializeApp(firebaseConfig);
-      window.__fb = {
-        auth: getAuth(fbApp),
-        db: getFirestore(fbApp),
-        signInWithEmailAndPassword,
-        onAuthStateChanged,
-        signOut,
-        collection,
-        query,
-        where,
-        onSnapshot,
-      };
-      window.dispatchEvent(new Event("jg-firebase-ready"));
-    } catch (err) {
-      console.error("Firebase initialization failed:", err);
-    }
-  });
+    // نفس مشروع Firebase المستخدم بالموقع الرئيسي (my_projet) — نفس حساب الدخول
+    const firebaseConfig = {
+      apiKey: "AIzaSyAAYOne0CTht9906nStecbqCHkb_CY6glw",
+      authDomain: "jamrat-ghadah.firebaseapp.com",
+      projectId: "jamrat-ghadah",
+      storageBucket: "jamrat-ghadah.appspot.com",
+    };
+    const fbApp = initializeApp(firebaseConfig);
+    window.__fb = {
+      auth: getAuth(fbApp),
+      db: getFirestore(fbApp),
+      signInWithEmailAndPassword,
+      onAuthStateChanged,
+      signOut,
+      collection,
+      query,
+      where,
+      onSnapshot,
+    };
+    window.dispatchEvent(new Event("jg-firebase-ready"));
+  })();
 </script>
 <style>
   * { box-sizing: border-box; }
@@ -65,14 +63,16 @@
 
 <div id="root"></div>
 
-<script type="text/babel" data-presets="react">
+<script>
 const { useState, useEffect, useRef, useMemo } = React;
+const h = React.createElement;
 
+// ---------- إعدادات افتراضية (تُحفظ محليًا بالمتصفح) ----------
 const defaultConfig = {
   videoLink: "",
   cloudinaryCloudName: "",
   cloudinaryUploadPreset: "",
-  sendSecret: "", 
+  sendSecret: "", // نفس SEND_SECRET المضبوطة بـ Netlify
 
   reminderWhatsapp: "هلا {{name}} 💛 يذكّرك موعد المناسبة، ما ننتظر إلا حضوركم الكريم",
   reminderEmailSubject: "تذكير بمناسبتنا يا {{name}} 💛",
@@ -91,6 +91,7 @@ function fillTemplate(tpl, guest) {
   return (tpl || "").replaceAll("{{name}}", guest.name || "ضيفة").replaceAll("{{code}}", guest.entryCode || "");
 }
 
+// ---------- مكوّن رسم QR ----------
 function QR({ data, size, color }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -106,7 +107,7 @@ function QR({ data, size, color }) {
       }
     } catch (e) {}
   }, [data, size, color]);
-  return <div ref={ref} style={{ width: size, height: size, background: "#fff", borderRadius: 8 }} />;
+  return h('div', { ref, style: { width: size, height: size, background: "#fff", borderRadius: 8 } });
 }
 
 async function uploadToCloudinary(blob, filename, config) {
@@ -123,6 +124,7 @@ async function uploadToCloudinary(blob, filename, config) {
   return data.secure_url;
 }
 
+// ---------- بوابة تسجيل الدخول (نفس حساب لوحة تحكم الموقع) ----------
 function LoginGate({ onReady }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState(null);
@@ -152,24 +154,23 @@ function LoginGate({ onReady }) {
     setBusy(false);
   }
 
-  if (!ready) return <div style={{ padding: 40, textAlign: "center", fontSize: 13, opacity: .6 }}>جارِ التحميل...</div>;
+  if (!ready) return h('div', { style: { padding: 40, textAlign: "center", fontSize: 13, opacity: .6 } }, 'جارِ التحميل...');
 
   if (user) return onReady(user);
 
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "#fff", border: "1px solid #F0E6D6", borderRadius: 20, padding: 32, maxWidth: 320, width: "90%", textAlign: "center" }}>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 14 }}>🔒 جمرة غضى - نظام الإرسال</div>
-        <input placeholder="الإيميل" value={email} onChange={e => setEmail(e.target.value)} style={{ marginBottom: 10, textAlign: "center" }} />
-        <input type="password" placeholder="كلمة المرور" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && login()} style={{ marginBottom: 10, textAlign: "center" }} />
-        <button className="btn-dark" style={{ width: "100%" }} onClick={login} disabled={busy}>{busy ? "..." : "دخول"}</button>
-        {err && <div style={{ color: "#DC2626", fontSize: 12, marginTop: 10 }}>{err}</div>}
-        <div style={{ fontSize: 11, opacity: .5, marginTop: 12 }}>نفس حساب لوحة تحكم الموقع الرئيسي</div>
-      </div>
-    </div>
+  return h('div', { style: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" } },
+    h('div', { style: { background: "#fff", border: "1px solid #F0E6D6", borderRadius: 20, padding: 32, maxWidth: 320, width: "90%", textAlign: "center" } },
+      h('div', { style: { fontWeight: 700, fontSize: 16, marginBottom: 14 } }, '🔒 جمرة غضى - نظام الإرسال'),
+      h('input', { placeholder: "الإيميل", value: email, onChange: e => setEmail(e.target.value), style: { marginBottom: 10, textAlign: "center" } }),
+      h('input', { type: "password", placeholder: "كلمة المرور", value: pw, onChange: e => setPw(e.target.value), onKeyDown: e => e.key === "Enter" && login(), style: { marginBottom: 10, textAlign: "center" } }),
+      h('button', { className: "btn-dark", style: { width: "100%" }, onClick: login, disabled: busy }, busy ? "..." : "دخول"),
+      err && h('div', { style: { color: "#DC2626", fontSize: 12, marginTop: 10 } }, err),
+      h('div', { style: { fontSize: 11, opacity: .5, marginTop: 12 } }, 'نفس حساب لوحة تحكم الموقع الرئيسي')
+    )
   );
 }
 
+// ---------- المكوّن الرئيسي ----------
 function App({ user }) {
   const urlParams = new URLSearchParams(window.location.search);
   const eventCode = urlParams.get("event") || "";
@@ -347,168 +348,169 @@ function App({ user }) {
   }
 
   if (!eventCode) {
-    return <div style={{ padding: 40, textAlign: "center" }}>
-      <p>افتحي هذي الصفحة من رابط عميلة بلوحة <a href="events.html">إدارة المناسبات</a></p>
-    </div>;
+    return h('div', { style: { padding: 40, textAlign: "center" } },
+      h('p', null, 'افتحي هذي الصفحة من رابط عميلة بلوحة ', h('a', { href: "events.html" }, 'إدارة المناسبات'))
+    );
   }
 
   if (!config.sendSecret) {
-    return <div style={{ maxWidth: 380, margin: "60px auto", padding: 20, textAlign: "center" }}>
-      <p style={{ marginBottom: 12 }}>عبّي كلمة سر الإرسال (SEND_SECRET) أول مرة:</p>
-      <input type="password" placeholder="SEND_SECRET" onKeyDown={e => {
+    return h('div', { style: { maxWidth: 380, margin: "60px auto", padding: 20, textAlign: "center" } },
+      h('p', { style: { marginBottom: 12 } }, 'عبّي كلمة سر الإرسال (SEND_SECRET) أول مرة:'),
+      h('input', { type: "password", placeholder: "SEND_SECRET", onKeyDown: e => {
         if (e.key === "Enter") setConfig(c => ({ ...c, sendSecret: e.target.value }));
-      }} />
-    </div>;
+      } })
+    );
   }
 
-  return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: 20 }}>
-      <header style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
-            {eventMeta ? `📨 ${eventMeta.clientName}` : "📨 جمرة غضى - الإرسال"}
-          </h1>
-          <p style={{ fontSize: 11, opacity: .6, margin: "4px 0 0" }}>
-            {eventMeta ? `مربوطة بدعوة: ${eventMeta.slug} — ${guests.length} رد مؤكد (يتحدث لحظيًا من الموقع)` : "..."}
-          </p>
-        </div>
-        <a href="events.html" style={{ fontSize: 12, color: "#999" }}>↩ رجوع للمناسبات</a>
-      </header>
+  const headerTitle = eventMeta ? `📨 ${eventMeta.clientName}` : "📨 جمرة غضى - الإرسال";
+  const headerSub = eventMeta ? `مربوطة بدعوة: ${eventMeta.slug} — ${guests.length} رد مؤكد (يتحدث لحظيًا من الموقع)` : "...";
 
-      {eventErr && (
-        <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: 14, padding: 14, marginBottom: 20, fontSize: 12 }}>
-          ⚠️ {eventErr}
-        </div>
-      )}
+  const header = h('header', { style: { marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" } },
+    h('div', null,
+      h('h1', { style: { fontSize: 18, fontWeight: 700, margin: 0 } }, headerTitle),
+      h('p', { style: { fontSize: 11, opacity: .6, margin: "4px 0 0" } }, headerSub)
+    ),
+    h('a', { href: "events.html", style: { fontSize: 12, color: "#999" } }, '↩ رجوع للمناسبات')
+  );
 
-      {(!config.cloudinaryCloudName || !config.cloudinaryUploadPreset) && (
-        <div style={{ background: "#FFF3E0", border: "1px solid #F0E6D6", borderRadius: 14, padding: 14, marginBottom: 20, fontSize: 12, lineHeight: 1.8 }}>
-          ⚠️ لسا ناقصة إعدادات Cloudinary (اسم الحساب + Upload preset) — عبّيهم بقسم "الإعدادات" قبل ما ترسلين.
-        </div>
-      )}
+  const errBox = eventErr
+    ? h('div', { style: { background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: 14, padding: 14, marginBottom: 20, fontSize: 12 } }, '⚠️ ', eventErr)
+    : null;
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        <button className={mode === "reminder" ? "btn-gold" : "btn-outline"} onClick={() => setMode("reminder")}>🔔 وضع التذكير (قبل المناسبة)</button>
-        <button className={mode === "thanks" ? "btn-gold" : "btn-outline"} onClick={() => setMode("thanks")}>🌹 وضع الشكر (بعد المناسبة)</button>
-      </div>
+  const cloudinaryWarn = (!config.cloudinaryCloudName || !config.cloudinaryUploadPreset)
+    ? h('div', { style: { background: "#FFF3E0", border: "1px solid #F0E6D6", borderRadius: 14, padding: 14, marginBottom: 20, fontSize: 12, lineHeight: 1.8 } },
+        '⚠️ لسا ناقصة إعدادات Cloudinary (اسم الحساب + Upload preset) — عبّيهم بقسم "الإعدادات" قبل ما ترسلين.')
+    : null;
 
-      <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 20, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <section style={{ background: "white", border: "1px solid #F0E6D6", borderRadius: 16, padding: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>الإعدادات</h3>
-            <Field label="رابط فيديو الدعوة (Cloudinary)">
-              <input value={config.videoLink} onChange={e => setConfig(c => ({ ...c, videoLink: e.target.value }))} dir="ltr" />
-            </Field>
-            <Field label="Cloudinary Cloud Name">
-              <input value={config.cloudinaryCloudName} onChange={e => setConfig(c => ({ ...c, cloudinaryCloudName: e.target.value }))} dir="ltr" />
-            </Field>
-            <Field label="Cloudinary Upload Preset (Unsigned)">
-              <input value={config.cloudinaryUploadPreset} onChange={e => setConfig(c => ({ ...c, cloudinaryUploadPreset: e.target.value }))} dir="ltr" />
-            </Field>
-            <Field label="كلمة سر الإرسال (SEND_SECRET)">
-              <input type="password" value={config.sendSecret} onChange={e => setConfig(c => ({ ...c, sendSecret: e.target.value }))} dir="ltr" />
-            </Field>
-          </section>
+  const modeButtons = h('div', { style: { display: "flex", gap: 8, marginBottom: 20 } },
+    h('button', { className: mode === "reminder" ? "btn-gold" : "btn-outline", onClick: () => setMode("reminder") }, '🔔 وضع التذكير (قبل المناسبة)'),
+    h('button', { className: mode === "thanks" ? "btn-gold" : "btn-outline", onClick: () => setMode("thanks") }, '🌹 وضع الشكر (بعد المناسبة)')
+  );
 
-          <section style={{ background: "white", border: "1px solid #F0E6D6", borderRadius: 16, padding: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
-              رسائل {mode === "reminder" ? "التذكير" : "الشكر"} (المتغيرات: {"{{name}} {{code}}"})
-            </h3>
-            {mode === "reminder" ? (
-              <React.Fragment>
-                <Field label="نص واتساب"><textarea rows={3} value={config.reminderWhatsapp} onChange={e => setConfig(c => ({ ...c, reminderWhatsapp: e.target.value }))} /></Field>
-                <Field label="عنوان الإيميل"><input value={config.reminderEmailSubject} onChange={e => setConfig(c => ({ ...c, reminderEmailSubject: e.target.value }))} /></Field>
-                <Field label="نص الإيميل"><textarea rows={3} value={config.reminderEmailText} onChange={e => setConfig(c => ({ ...c, reminderEmailText: e.target.value }))} /></Field>
-              </React.Fragment>
-            ) : (
-              <React.Fragment>
-                <Field label="نص واتساب"><textarea rows={3} value={config.thanksWhatsapp} onChange={e => setConfig(c => ({ ...c, thanksWhatsapp: e.target.value }))} /></Field>
-                <Field label="عنوان الإيميل"><input value={config.thanksEmailSubject} onChange={e => setConfig(c => ({ ...c, thanksEmailSubject: e.target.value }))} /></Field>
-                <Field label="نص الإيميل"><textarea rows={3} value={config.thanksEmailText} onChange={e => setConfig(c => ({ ...c, thanksEmailText: e.target.value }))} /></Field>
-              </React.Fragment>
-            )}
-          </section>
+  const settingsSection = h('section', { style: { background: "white", border: "1px solid #F0E6D6", borderRadius: 16, padding: 16 } },
+    h('h3', { style: { fontSize: 13, fontWeight: 700, marginBottom: 10 } }, 'الإعدادات'),
+    h(Field, { label: "رابط فيديو الدعوة (Cloudinary)" },
+      h('input', { value: config.videoLink, onChange: e => setConfig(c => ({ ...c, videoLink: e.target.value })), dir: "ltr" })
+    ),
+    h(Field, { label: "Cloudinary Cloud Name" },
+      h('input', { value: config.cloudinaryCloudName, onChange: e => setConfig(c => ({ ...c, cloudinaryCloudName: e.target.value })), dir: "ltr" })
+    ),
+    h(Field, { label: "Cloudinary Upload Preset (Unsigned)" },
+      h('input', { value: config.cloudinaryUploadPreset, onChange: e => setConfig(c => ({ ...c, cloudinaryUploadPreset: e.target.value })), dir: "ltr" })
+    ),
+    h(Field, { label: "كلمة سر الإرسال (SEND_SECRET)" },
+      h('input', { type: "password", value: config.sendSecret, onChange: e => setConfig(c => ({ ...c, sendSecret: e.target.value })), dir: "ltr" })
+    )
+  );
 
-          <section style={{ background: "white", border: "1px solid #F0E6D6", borderRadius: 16, padding: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>معاينة البطاقة</h3>
-            <select value={currentId} onChange={e => setCurrentId(e.target.value)}>
-              {allGuests.map(g => <option key={g.id} value={g.id}>{g.name} - {g.entryCode}</option>)}
-            </select>
-          </section>
-        </div>
+  const messagesHeading = h('h3', { style: { fontSize: 13, fontWeight: 700, marginBottom: 10 } },
+    'رسائل ', (mode === "reminder" ? "التذكير" : "الشكر"), ' (المتغيرات: ', "{{name}} {{code}}", ')'
+  );
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <div ref={cardRef} className="card" style={{
-              width: 320, minHeight: 420, borderRadius: 24, padding: 24,
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between",
-              boxShadow: "0 20px 60px -15px rgba(0,0,0,.3)",
-            }}>
-              <p style={{ fontFamily: "Cairo", fontSize: 12, opacity: .7, textAlign: "center" }}>{config.topText}</p>
-              <QR data={entryLink} size={140} color={config.goldColor} />
-              <p style={{ fontFamily: "monospace", fontSize: 13, letterSpacing: 2, color: config.goldColor, fontWeight: "bold" }}>{entryLink}</p>
-              <p style={{ fontFamily: "Georgia", fontSize: 22, color: config.goldColor }}>{config.sideText}</p>
-              <p style={{ fontSize: 11, opacity: .6 }}>{current?.name}</p>
-            </div>
-          </div>
+  const messagesFields = mode === "reminder"
+    ? h(React.Fragment, null,
+        h(Field, { label: "نص واتساب" }, h('textarea', { rows: 3, value: config.reminderWhatsapp, onChange: e => setConfig(c => ({ ...c, reminderWhatsapp: e.target.value })) })),
+        h(Field, { label: "عنوان الإيميل" }, h('input', { value: config.reminderEmailSubject, onChange: e => setConfig(c => ({ ...c, reminderEmailSubject: e.target.value })) })),
+        h(Field, { label: "نص الإيميل" }, h('textarea', { rows: 3, value: config.reminderEmailText, onChange: e => setConfig(c => ({ ...c, reminderEmailText: e.target.value })) }))
+      )
+    : h(React.Fragment, null,
+        h(Field, { label: "نص واتساب" }, h('textarea', { rows: 3, value: config.thanksWhatsapp, onChange: e => setConfig(c => ({ ...c, thanksWhatsapp: e.target.value })) })),
+        h(Field, { label: "عنوان الإيميل" }, h('input', { value: config.thanksEmailSubject, onChange: e => setConfig(c => ({ ...c, thanksEmailSubject: e.target.value })) })),
+        h(Field, { label: "نص الإيميل" }, h('textarea', { rows: 3, value: config.thanksEmailText, onChange: e => setConfig(c => ({ ...c, thanksEmailText: e.target.value })) }))
+      );
 
-          <section style={{ background: "white", border: "1px solid #F0E6D6", borderRadius: 16, padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700 }}>المدعوّون المؤكدون ({allGuests.length})</h3>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-outline" onClick={addManual}>+ إضافة يدوية</button>
-                <button className="btn-gold" onClick={sendToAll}>إرسال جماعي ({mode === "reminder" ? "تذكير" : "شكر"})</button>
-              </div>
-            </div>
+  const messagesSection = h('section', { style: { background: "white", border: "1px solid #F0E6D6", borderRadius: 16, padding: 16 } },
+    messagesHeading, messagesFields
+  );
 
-            <div style={{ overflowX: "auto" }}>
-              <table>
-                <thead><tr>
-                  <th>الاسم</th><th>الجوال</th><th>الحالة</th><th>إجراء</th>
-                </tr></thead>
-                <tbody>
-                  {allGuests.map(g => {
-                    const info = guestSentInfo(g);
-                    return (
-                      <tr key={g.id}>
-                        <td>{g.name}<div style={{ fontSize: 10, opacity: .5 }}>{g.entryCode}{g.manual && " · يدوي"}</div></td>
-                        <td dir="ltr" style={{ fontSize: 11 }}>{g.phone || "—"}</td>
-                        <td>
-                          {!info && <span className="pill" style={{ background: "#F5F5F5" }}>لم يرسل</span>}
-                          {info?.ok && <span className="pill" style={{ background: "#D1FAE5" }} title={info.note}>✅ {info.note}</span>}
-                          {info && !info.ok && <span className="pill" style={{ background: "#FEE2E2" }} title={info.note}>❌ فشل</span>}
-                        </td>
-                        <td><button className="btn-gold" onClick={() => sendToGuest(g)}>إرسال</button></td>
-                      </tr>
-                    );
-                  })}
-                  {!allGuests.length && (
-                    <tr><td colSpan="4" style={{ textAlign: "center", opacity: .5, padding: 20 }}>
-                      ما فيه ردود مؤكدة بعد لهذي الدعوة — بتظهر هنا تلقائيًا فور ما ضيف يؤكد حضوره بالموقع
-                    </td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {log && <p style={{ fontSize: 11, opacity: .6, marginTop: 8 }}>{log}</p>}
-          </section>
-        </div>
-      </div>
-    </div>
+  const previewSection = h('section', { style: { background: "white", border: "1px solid #F0E6D6", borderRadius: 16, padding: 16 } },
+    h('h3', { style: { fontSize: 13, fontWeight: 700, marginBottom: 10 } }, 'معاينة البطاقة'),
+    h('select', { value: currentId, onChange: e => setCurrentId(e.target.value) },
+      allGuests.map(g => h('option', { key: g.id, value: g.id }, `${g.name} - ${g.entryCode}`))
+    )
+  );
+
+  const leftColumn = h('div', { style: { display: "flex", flexDirection: "column", gap: 16 } },
+    settingsSection, messagesSection, previewSection
+  );
+
+  const card = h('div', { style: { display: "flex", justifyContent: "center" } },
+    h('div', {
+      ref: cardRef, className: "card", style: {
+        width: 320, minHeight: 420, borderRadius: 24, padding: 24,
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between",
+        boxShadow: "0 20px 60px -15px rgba(0,0,0,.3)",
+      }
+    },
+      h('p', { style: { fontFamily: "Cairo", fontSize: 12, opacity: .7, textAlign: "center" } }, config.topText),
+      h(QR, { data: entryLink, size: 140, color: config.goldColor }),
+      h('p', { style: { fontFamily: "monospace", fontSize: 13, letterSpacing: 2, color: config.goldColor, fontWeight: "bold" } }, entryLink),
+      h('p', { style: { fontFamily: "Georgia", fontSize: 22, color: config.goldColor } }, config.sideText),
+      h('p', { style: { fontSize: 11, opacity: .6 } }, current?.name)
+    )
+  );
+
+  const tableHead = h('thead', null, h('tr', null,
+    h('th', null, 'الاسم'), h('th', null, 'الجوال'), h('th', null, 'الحالة'), h('th', null, 'إجراء')
+  ));
+
+  const tableRows = allGuests.map(g => {
+    const info = guestSentInfo(g);
+    return h('tr', { key: g.id },
+      h('td', null, g.name, h('div', { style: { fontSize: 10, opacity: .5 } }, g.entryCode, g.manual && ' · يدوي')),
+      h('td', { dir: "ltr", style: { fontSize: 11 } }, g.phone || "—"),
+      h('td', null,
+        !info && h('span', { className: "pill", style: { background: "#F5F5F5" } }, 'لم يرسل'),
+        info?.ok && h('span', { className: "pill", style: { background: "#D1FAE5" }, title: info.note }, '✅ ', info.note),
+        (info && !info.ok) && h('span', { className: "pill", style: { background: "#FEE2E2" }, title: info.note }, '❌ فشل')
+      ),
+      h('td', null, h('button', { className: "btn-gold", onClick: () => sendToGuest(g) }, 'إرسال'))
+    );
+  });
+
+  const emptyRow = !allGuests.length
+    ? h('tr', null, h('td', { colSpan: "4", style: { textAlign: "center", opacity: .5, padding: 20 } },
+        'ما فيه ردود مؤكدة بعد لهذي الدعوة — بتظهر هنا تلقائيًا فور ما ضيف يؤكد حضوره بالموقع'))
+    : null;
+
+  const tableBody = h('tbody', null, ...tableRows, emptyRow);
+
+  const guestsSection = h('section', { style: { background: "white", border: "1px solid #F0E6D6", borderRadius: 16, padding: 16 } },
+    h('div', { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+      h('h3', { style: { fontSize: 13, fontWeight: 700 } }, `المدعوّون المؤكدون (${allGuests.length})`),
+      h('div', { style: { display: "flex", gap: 8 } },
+        h('button', { className: "btn-outline", onClick: addManual }, '+ إضافة يدوية'),
+        h('button', { className: "btn-gold", onClick: sendToAll }, `إرسال جماعي (${mode === "reminder" ? "تذكير" : "شكر"})`)
+      )
+    ),
+    h('div', { style: { overflowX: "auto" } },
+      h('table', null, tableHead, tableBody)
+    ),
+    log ? h('p', { style: { fontSize: 11, opacity: .6, marginTop: 8 } }, log) : null
+  );
+
+  const rightColumn = h('div', { style: { display: "flex", flexDirection: "column", gap: 20 } },
+    card, guestsSection
+  );
+
+  const grid = h('div', { style: { display: "grid", gridTemplateColumns: "380px 1fr", gap: 20, alignItems: "start" } },
+    leftColumn, rightColumn
+  );
+
+  return h('div', { style: { maxWidth: 1200, margin: "0 auto", padding: 20 } },
+    header, errBox, cloudinaryWarn, modeButtons, grid
   );
 }
 
 function Field({ label, children }) {
-  return (
-    <label style={{ display: "block", marginBottom: 10 }}>
-      <span style={{ fontSize: 11, opacity: .7 }}>{label}</span>
-      <div style={{ marginTop: 4 }}>{children}</div>
-    </label>
+  return h('label', { style: { display: "block", marginBottom: 10 } },
+    h('span', { style: { fontSize: 11, opacity: .7 } }, label),
+    h('div', { style: { marginTop: 4 } }, children)
   );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <LoginGate onReady={(user) => <App user={user} />} />
+  h(LoginGate, { onReady: (user) => h(App, { user }) })
 );
 </script>
 </body>
