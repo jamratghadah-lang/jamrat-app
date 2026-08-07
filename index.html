@@ -9,33 +9,38 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script type="module">
-  // استخدام type="module" يسمح بالاستيراد المباشر لحل التعارض مع Babel
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+<script>
+  // تهيئة Firebase باستخدام الاستيراد الديناميكي المعزول بعيداً عن تحويلات Babel للوسوم
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+      const { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+      const { getFirestore, collection, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
-  // نفس مشروع Firebase المستخدم بالموقع الرئيسي (my_projet) — نفس حساب الدخول
-  const firebaseConfig = {
-    apiKey: "AIzaSyAAYOne0CTht9906nStecbqCHkb_CY6glw",
-    authDomain: "jamrat-ghadah.firebaseapp.com",
-    projectId: "jamrat-ghadah",
-    storageBucket: "jamrat-ghadah.appspot.com",
-  };
-  
-  const fbApp = initializeApp(firebaseConfig);
-  window.__fb = {
-    auth: getAuth(fbApp),
-    db: getFirestore(fbApp),
-    signInWithEmailAndPassword,
-    onAuthStateChanged,
-    signOut,
-    collection,
-    query,
-    where,
-    onSnapshot,
-  };
-  window.dispatchEvent(new Event("jg-firebase-ready"));
+      const firebaseConfig = {
+        apiKey: "AIzaSyAAYOne0CTht9906nStecbqCHkb_CY6glw",
+        authDomain: "jamrat-ghadah.firebaseapp.com",
+        projectId: "jamrat-ghadah",
+        storageBucket: "jamrat-ghadah.appspot.com",
+      };
+      
+      const fbApp = initializeApp(firebaseConfig);
+      window.__fb = {
+        auth: getAuth(fbApp),
+        db: getFirestore(fbApp),
+        signInWithEmailAndPassword,
+        onAuthStateChanged,
+        signOut,
+        collection,
+        query,
+        where,
+        onSnapshot,
+      };
+      window.dispatchEvent(new Event("jg-firebase-ready"));
+    } catch (err) {
+      console.error("Firebase initialization failed:", err);
+    }
+  });
 </script>
 <style>
   * { box-sizing: border-box; }
@@ -63,12 +68,11 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useMemo } = React;
 
-// ---------- إعدادات افتراضية (تُحفظ محليًا بالمتصفح) ----------
 const defaultConfig = {
   videoLink: "",
   cloudinaryCloudName: "",
   cloudinaryUploadPreset: "",
-  sendSecret: "", // نفس SEND_SECRET المضبوطة بـ Netlify
+  sendSecret: "", 
 
   reminderWhatsapp: "هلا {{name}} 💛 يذكّرك موعد المناسبة، ما ننتظر إلا حضوركم الكريم",
   reminderEmailSubject: "تذكير بمناسبتنا يا {{name}} 💛",
@@ -87,7 +91,6 @@ function fillTemplate(tpl, guest) {
   return (tpl || "").replaceAll("{{name}}", guest.name || "ضيفة").replaceAll("{{code}}", guest.entryCode || "");
 }
 
-// ---------- مكوّن رسم QR ----------
 function QR({ data, size, color }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -120,7 +123,6 @@ async function uploadToCloudinary(blob, filename, config) {
   return data.secure_url;
 }
 
-// ---------- بوابة تسجيل الدخول (نفس حساب لوحة تحكم الموقع) ----------
 function LoginGate({ onReady }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState(null);
@@ -168,7 +170,6 @@ function LoginGate({ onReady }) {
   );
 }
 
-// ---------- المكوّن الرئيسي ----------
 function App({ user }) {
   const urlParams = new URLSearchParams(window.location.search);
   const eventCode = urlParams.get("event") || "";
