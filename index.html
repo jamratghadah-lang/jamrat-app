@@ -9,31 +9,37 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+<script>
+  // نستخدم dynamic import() داخل سكربت عادي (بدون type="module") عمدًا —
+  // عشان نتجنب أي تعارض بين محوّل Babel التلقائي وسكربتات from type="module"
+  // (هذا بالضبط سبب الخطأ "Cannot use import statement outside a module"
+  // اللي كان يوقف تحميل الصفحة بالكامل).
+  (async function () {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    const { getFirestore, collection, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
-  // نفس مشروع Firebase المستخدم بالموقع الرئيسي (my_projet) — نفس حساب الدخول
-  const firebaseConfig = {
-    apiKey: "AIzaSyAAYOne0CTht9906nStecbqCHkb_CY6glw",
-    authDomain: "jamrat-ghadah.firebaseapp.com",
-    projectId: "jamrat-ghadah",
-    storageBucket: "jamrat-ghadah.appspot.com",
-  };
-  const fbApp = initializeApp(firebaseConfig);
-  window.__fb = {
-    auth: getAuth(fbApp),
-    db: getFirestore(fbApp),
-    signInWithEmailAndPassword,
-    onAuthStateChanged,
-    signOut,
-    collection,
-    query,
-    where,
-    onSnapshot,
-  };
-  window.dispatchEvent(new Event("jg-firebase-ready"));
+    // نفس مشروع Firebase المستخدم بالموقع الرئيسي (my_projet) — نفس حساب الدخول
+    const firebaseConfig = {
+      apiKey: "AIzaSyAAYOne0CTht9906nStecbqCHkb_CY6glw",
+      authDomain: "jamrat-ghadah.firebaseapp.com",
+      projectId: "jamrat-ghadah",
+      storageBucket: "jamrat-ghadah.appspot.com",
+    };
+    const fbApp = initializeApp(firebaseConfig);
+    window.__fb = {
+      auth: getAuth(fbApp),
+      db: getFirestore(fbApp),
+      signInWithEmailAndPassword,
+      onAuthStateChanged,
+      signOut,
+      collection,
+      query,
+      where,
+      onSnapshot,
+    };
+    window.dispatchEvent(new Event("jg-firebase-ready"));
+  })();
 </script>
 <style>
   * { box-sizing: border-box; }
