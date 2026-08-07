@@ -1,10 +1,9 @@
 // netlify/functions/send-whatsapp.js
 //
 // يرسل رسالة واتساب حقيقية عبر Meta Cloud API.
-// - لو وصله videoUrl وcardUrl سوا: يرسلهم كرسالتين متتاليتين (فيديو بالكابشن،
-//   ثم صورة البطاقة) — عشان الضيف يستلم الاثنين، مو وحد بس.
-// - لو وصله واحد منهم بس: يرسله لحاله (فيديو أو صورة).
-// - لو ما وصله ولا وحد: يرسل نص عادي.
+// إذا وصله videoUrl يرسله كفيديو حقيقي (يشغّل جوا الشات) مو كرابط نصي.
+// إذا وصله cardUrl (بدون فيديو) يرسله كصورة حقيقية.
+// إذا ما وصله ولا وحده، يرسل نص عادي.
 //
 // متغيرات البيئة المطلوبة بإعدادات Netlify (Site settings → Environment variables):
 //   WHATSAPP_TOKEN      = التوكن الدائم من Meta for Developers
@@ -44,56 +43,77 @@ exports.handler = async (event) => {
 
   const apiUrl = `https://graph.facebook.com/v19.0/${phoneId}/messages`;
 
-  async function sendPayload(body) {
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    return { ok: res.ok, data };
+  // نبني الرسالة حسب اللي متوفر: فيديو حقيقي أولاً، وإلا صورة البطاقة، وإلا نص
+  let body;
+  if (videoUrl) {
+    body = {
+      messaging_product: "whatsapp",
+      to,
+      type: "video",
+      video: {
+        link: videoUrl,
+        caption: (message || "").slice(0, 1024),
+      },
+    };
+  } else if (cardUrl) {
+    body = {
+      messaging_product: "whatsapp",
+      to,
+      type: "image",
+      image: {
+        link: cardUrl,
+        caption: (message || "").slice(0, 1024),
+      },
+    };
+  } else {
+    body = {
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: { body: message || "" },
+    };
   }
 
   try {
-    // نبني قائمة الرسائل المطلوب إرسالها بالترتيب: الفيديو أولاً (فيه الكابشن
-    // الأساسي)، ثم صورة البطاقة (بدون كابشن مكرر)، وإلا نص عادي لو ما فيه وسائط.
-    const messages = [];
-    if (videoUrl) {
-      messages.push({
-        messaging_product: "whatsapp", to, type: "video",
-        video: { link: videoUrl, caption: (message || "").slice(0, 1024) },
-      });
-    }
-    if (cardUrl) {
-      messages.push({
-        messaging_product: "whatsapp", to, type: "image",
-        image: { link: cardUrl, caption: videoUrl ? "" : (message || "").slice(0, 1024) },
-      });
-    }
-    if (!messages.length) {
-      messages.push({ messaging_product: "whatsapp", to, type: "text", text: { body: message || "" } });
+    const res = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ ok: false, message: data?.error?.message || "فشل إرسال الواتساب" }),
+      };
     }
 
-    let lastErr = "";
-    let anyOk = false;
-    for (const body of messages) {
-      const { ok, data } = await sendPayload(body);
-      if (ok) anyOk = true;
-      else lastErr = data?.error?.message || "فشل إرسال جزء من الرسالة";
-    }
-
-    if (!anyOk) {
-      return { statusCode: 200, body: JSON.stringify({ ok: false, message: lastErr || "فشل إرسال الواتساب" }) };
-    }
-
-    // لو فيه فيديو والرسالة أطول من حد الكابشن (1024 حرف)، نرسل رسالة نصية
-    // ثالثة تحتوي النص كامل عشان ما يضيع جزء منه.
+    // إذا فيه فيديو، نرسل رسالة نصية ثانية تحتوي بقية الرسالة (لأن الكابشن محدود بـ1024 حرف)
     if (videoUrl && message && message.length > 1024) {
-      await sendPayload({ messaging_product: "whatsapp", to, type: "text", text: { body: message } });
+      await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "text",
+          text: { body: message },
+        }),
+      });
     }
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true, partial: !!lastErr, warning: lastErr || undefined }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
   } catch (err) {
-    return { statusCode: 200, body: JSON.stringify({ ok: false, message: "تعذر الاتصال بواتساب" }) };
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ ok: false, message: "تعذر الاتصال بواتساب" }),
+    };
   }
 };

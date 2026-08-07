@@ -15,24 +15,8 @@
 
 const { getStore, connectLambda } = require("@netlify/blobs");
 
+const FIREBASE_API_KEY = "AIzaSyAAYOne0CTht9906nStecbqCHkb_CY6glw";
 const PROJECT_ID = "jamrat-ghadah";
-
-// اتصال Firestore بصلاحية إدارية (Admin) — لازم لأن قواعد أمان الموقع
-// تشترط تسجيل دخول لقراءة مجموعة "responses". يتطلب متغيّر بيئة
-// FIREBASE_SERVICE_ACCOUNT_JSON (نفس القيمة المستخدمة بمشروع الموقع my_projet).
-let _adminDb = null;
-function getAdminDb() {
-  if (_adminDb) return _adminDb;
-  const admin = require("firebase-admin");
-  if (!admin.apps.length) {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON غير مضبوطة بإعدادات Netlify");
-    const serviceAccount = JSON.parse(raw);
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount), projectId: PROJECT_ID });
-  }
-  _adminDb = admin.firestore();
-  return _adminDb;
-}
 
 // كود دخول احتياطي لو رد قديم اترسل قبل إضافة هذي الميزة وما فيه entryCode
 // محفوظ أصلاً — عشان القائمة ما تنكسر، نولّد كود ثابت مبني على معرّف الرد نفسه.
@@ -66,22 +50,29 @@ exports.handler = async (event) => {
   }
 
   try {
-    // 1) اقرأ الردود المؤكدة من Firestore حق الموقع الرئيسي (بصلاحية إدارية)
-    const snap = await getAdminDb().collection("responses").get();
+    // 1) اقرأ الردود المؤكدة من Firestore حق الموقع الرئيسي
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/responses?key=${FIREBASE_API_KEY}&pageSize=1000`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      return { statusCode: 200, body: JSON.stringify({ ok: false, message: "تعذرت قراءة بيانات الموقع" }) };
+    }
+    const data = await res.json();
+    const docs = data.documents || [];
 
     const guests = [];
-    snap.forEach((doc) => {
-      const f = doc.data() || {};
-      const style = f.style || "";
-      const status = f.status || "";
-      if (style !== slug || status !== "yes") return;
+    for (const doc of docs) {
+      const f = doc.fields || {};
+      const style = f.style?.stringValue || "";
+      const status = f.status?.stringValue || "";
+      if (style !== slug || status !== "yes") continue;
 
-      const name = f.name || "ضيف";
-      const phone = f.phone || "";
-      const entryCode = f.entryCode || fallbackEntryCode(doc.id);
+      const responseId = doc.name.split("/").pop();
+      const name = f.name?.stringValue || "ضيف";
+      const phone = f.phone?.stringValue || "";
+      const entryCode = f.entryCode?.stringValue || fallbackEntryCode(responseId);
 
       guests.push({ name, phone, entryCode });
-    });
+    }
 
     if (!guests.length) {
       return {

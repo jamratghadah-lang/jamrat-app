@@ -208,7 +208,6 @@ async function createEvent() {
   const eventCode = document.getElementById("newEventCode").value.trim();
   const eventType = document.getElementById("newEventType").value;
   const eventDate = document.getElementById("newEventDate").value;
-  const slug = document.getElementById("newSlug").value.trim();
   if (!clientName || !eventCode) {
     msg = "لازم اسم العميلة ورمز المناسبة"; msgType = "err"; render();
     return;
@@ -217,7 +216,7 @@ async function createEvent() {
   const { ok, data } = await api("/event-register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientName, eventCode, eventType, eventDate, slug }),
+    body: JSON.stringify({ clientName, eventCode, eventType, eventDate }),
   });
   loading = false;
   if (ok && data.ok) {
@@ -277,10 +276,9 @@ function render() {
   app.innerHTML = `
     <div class="card">
       <h3>➕ فتح قسم عميلة جديدة</h3>
-      <p class="muted">كل عميلة يصير لها قسم مستقل يضل مفتوح لين تخلصين منه (تذكير + شكر) وتضغطين "إنهاء المناسبة". اسم قالب الدعوة لازم يكون مطابق تمامًا لاسم ملف الدعوة بالموقع (شوفيه بلوحة /admin أو برابط الدعوة نفسه، مثل rsvp/<b>wedding-classic</b>.html).</p>
+      <p class="muted">كل عميلة يصير لها قسم مستقل يضل مفتوح لين تخلصين منه (تذكير + شكر) وتضغطين "إنهاء المناسبة".</p>
       <input type="text" id="newClientName" placeholder="اسم العميلة (مثال: سارة وأحمد)">
       <input type="text" id="newEventCode" placeholder="رمز المناسبة (تختارينه إنتي، مثال: SARA2026)" style="direction:ltr;text-align:left">
-      <input type="text" id="newSlug" placeholder="اسم قالب الدعوة بالموقع (مثال: wedding-classic)" style="direction:ltr;text-align:left">
       <select id="newEventType">
         <option value="">نوع المناسبة (اختياري)</option>
         <option value="زفاف">زفاف</option>

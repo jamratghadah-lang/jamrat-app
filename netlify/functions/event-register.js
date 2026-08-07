@@ -24,7 +24,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ ok: false, message: "بيانات غير صالحة" }) };
   }
 
-  const { eventCode, clientName, eventType, eventDate, slug } = payload;
+  const { eventCode, clientName, eventType, eventDate } = payload;
   if (!eventCode || !clientName) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, message: "لازم رمز المناسبة واسم العميلة" }) };
   }
@@ -40,7 +40,6 @@ exports.handler = async (event) => {
       clientName,
       eventType: eventType || "",
       eventDate: eventDate || "",
-      slug: slug || "",
       status: "active",
       createdAt: idx >= 0 ? registry.events[idx].createdAt : new Date().toISOString(),
       finishedAt: null,
