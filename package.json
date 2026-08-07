@@ -2,6 +2,7 @@
   "name": "jamrat-ghadha",
   "version": "1.0.0",
   "dependencies": {
-    "@netlify/blobs": "^8.0.0"
+    "@netlify/blobs": "^8.0.0",
+    "firebase-admin": "^12.1.0"
   }
 }

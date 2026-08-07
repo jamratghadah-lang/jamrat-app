@@ -173,7 +173,10 @@
 const FN_BASE = "/.netlify/functions"; // إذا مستضافة بدومين ثاني عن التطبيق الرئيسي، غيّري هذا لرابط الفنكشنز الكامل
 const LAST_EVENT_KEY = "jamrat_checkin_last_event";
 
-let eventCode = localStorage.getItem(LAST_EVENT_KEY) || "";
+const urlParams = new URLSearchParams(window.location.search);
+const eventFromUrl = urlParams.get("event");
+let eventCode = eventFromUrl || localStorage.getItem(LAST_EVENT_KEY) || "";
+if (eventFromUrl) localStorage.setItem(LAST_EVENT_KEY, eventFromUrl);
 let lastResult = null;
 let statusData = null;
 let loading = false;
@@ -210,9 +213,50 @@ function renderEventScreen() {
       <button id="enterBtn">دخول</button>
       ${errMsg ? `<div class="err">${escapeHtml(errMsg)}</div>` : ""}
     </div>
+    <div class="card">
+      <h3>🔗 استيراد المدعوين المؤكدين من موقع جمرة غضى</h3>
+      <p class="muted">يجيب تلقائيًا كل الردود المؤكدة (نعم للحضور) من موقعكم الرئيسي لدعوة معيّنة، ويرفعها هنا جاهزة لتسجيل الدخول — بدون رفع CSV يدوي. يستخدمها صاحبة الحساب فقط (تحتاج كلمة سر الإرسال).</p>
+      <button class="secondary" id="syncFromSiteBtn">استيراد من الموقع الآن</button>
+    </div>
   `;
   el("eventCodeInput").addEventListener("keydown", (e) => { if (e.key === "Enter") enterEvent(); });
   el("enterBtn").addEventListener("click", enterEvent);
+  el("syncFromSiteBtn").addEventListener("click", syncFromSite);
+}
+
+async function syncFromSite() {
+  const slug = prompt("اسم قالب الدعوة بالموقع (مثال: wedding-classic أو wedding-gold):");
+  if (!slug) return;
+  const evCode = prompt("رمز المناسبة هنا بالتطبيق (اختاري رمز جديد أو رمز موجود):");
+  if (!evCode) return;
+  const pin = prompt("الرقم السري لهذي المناسبة (تختارينه إنتي، احفظيه لأي جهاز ثاني):");
+  if (!pin) return;
+  const secret = prompt("كلمة سر الإرسال (نفس SEND_SECRET المضبوطة بإعدادات الموقع):");
+  if (!secret) return;
+
+  errMsg = "";
+  loading = true;
+  render();
+  const { ok, data } = await api("/sync-from-site", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-send-secret": secret },
+    body: JSON.stringify({ slug, eventCode: evCode, pin }),
+  });
+  loading = false;
+
+  if (!ok || !data.ok) {
+    alert((data && data.message) || "تعذر الاستيراد من الموقع");
+    render();
+    return;
+  }
+
+  alert(`تم استيراد ${data.count} ضيف مؤكد من الموقع بنجاح ✓`);
+  eventCode = evCode;
+  localStorage.setItem(LAST_EVENT_KEY, evCode);
+  const statusRes = await api("/event-status?eventCode=" + encodeURIComponent(evCode), { method: "GET" });
+  statusData = statusRes.ok ? statusRes.data : null;
+  lastResult = null;
+  render();
 }
 
 async function enterEvent() {
