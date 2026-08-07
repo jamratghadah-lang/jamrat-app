@@ -164,7 +164,10 @@
       <p id="subLabel">شاشة مسؤولي الاستقبال فقط</p>
     </div>
   </div>
-  <button class="switchBtn" id="switchEventBtn" style="display:none;">تغيير المناسبة</button>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <a href="guide.html" class="switchBtn" style="text-decoration:none;display:inline-block;">📖 الدليل</a>
+    <button class="switchBtn" id="switchEventBtn" style="display:none;">تغيير المناسبة</button>
+  </div>
 </header>
 
 <main id="app"></main>
@@ -175,6 +178,7 @@ const LAST_EVENT_KEY = "jamrat_checkin_last_event";
 
 const urlParams = new URLSearchParams(window.location.search);
 const eventFromUrl = urlParams.get("event");
+const slugFromUrl = urlParams.get("slug");
 let eventCode = eventFromUrl || localStorage.getItem(LAST_EVENT_KEY) || "";
 if (eventFromUrl) localStorage.setItem(LAST_EVENT_KEY, eventFromUrl);
 let lastResult = null;
@@ -225,9 +229,11 @@ function renderEventScreen() {
 }
 
 async function syncFromSite() {
-  const slug = prompt("اسم قالب الدعوة بالموقع (مثال: wedding-classic أو wedding-gold):");
+  // لو الرابط جاي من زر "استيراد المؤكدين من الموقع" بلوحة إدارة المناسبات (events.html)،
+  // اسم القالب ورمز المناسبة معبّين أصلاً بالرابط — ما تحتاجين تكتبينهم يدويًا كل مرة.
+  const slug = slugFromUrl || prompt("اسم قالب الدعوة بالموقع (مثال: wedding-classic أو wedding-gold):");
   if (!slug) return;
-  const evCode = prompt("رمز المناسبة هنا بالتطبيق (اختاري رمز جديد أو رمز موجود):");
+  const evCode = eventFromUrl || prompt("رمز المناسبة هنا بالتطبيق (اختاري رمز جديد أو رمز موجود):");
   if (!evCode) return;
   const pin = prompt("الرقم السري لهذي المناسبة (تختارينه إنتي، احفظيه لأي جهاز ثاني):");
   if (!pin) return;

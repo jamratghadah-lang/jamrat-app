@@ -19,6 +19,7 @@
     padding: 16px 20px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
     position: sticky;
     top: 0;
@@ -150,6 +151,10 @@
       <p>اشتغلي على أكثر من عميلة بنفس الوقت</p>
     </div>
   </div>
+  <div style="display:flex;gap:8px;">
+    <a href="guide.html" style="font-size:11px;background:#FFFBF5;border:1px solid #EDE3D3;border-radius:20px;padding:6px 12px;text-decoration:none;color:#2C2C2C;">📖 دليل الاستخدام</a>
+    <a href="index.html" style="font-size:11px;background:#FFFBF5;border:1px solid #EDE3D3;border-radius:20px;padding:6px 12px;text-decoration:none;color:#2C2C2C;">↩ اللوحة الرئيسية</a>
+  </div>
 </header>
 
 <main id="app"></main>
@@ -186,11 +191,11 @@ async function api(path, opts) {
 }
 
 let events = [];
-let testLoading = false;
-let testResult = null;
 let loading = true;
 let msg = "";
 let msgType = "";
+let testLoading = false;
+let testResult = null;
 
 async function loadEvents() {
   loading = true; render();
@@ -208,9 +213,9 @@ async function loadEvents() {
 async function createEvent() {
   const clientName = document.getElementById("newClientName").value.trim();
   const eventCode = document.getElementById("newEventCode").value.trim();
+  const slug = document.getElementById("newEventSlug").value.trim();
   const eventType = document.getElementById("newEventType").value;
   const eventDate = document.getElementById("newEventDate").value;
-  const slug = document.getElementById("newSlug").value.trim();
   if (!clientName || !eventCode) {
     msg = "لازم اسم العميلة ورمز المناسبة"; msgType = "err"; render();
     return;
@@ -219,7 +224,7 @@ async function createEvent() {
   const { ok, data } = await api("/event-register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientName, eventCode, eventType, eventDate, slug }),
+    body: JSON.stringify({ clientName, eventCode, slug, eventType, eventDate }),
   });
   loading = false;
   if (ok && data.ok) {
@@ -260,10 +265,14 @@ function eventCardHtml(ev) {
         <span class="code">${escapeHtml(ev.eventCode)}</span>
         ${ev.eventType ? " · " + escapeHtml(ev.eventType) : ""}
         ${dateLabel ? " · " + dateLabel : ""}
+        ${ev.slug ? " · قالب: " + escapeHtml(ev.slug) : ""}
       </div>
       <div class="event-actions">
         <button class="small secondary" onclick="window.open('checkin.html?event=${encodeURIComponent(ev.eventCode)}','_blank')">📋 فتح تسجيل الدخول</button>
         <button class="small secondary" onclick="window.open('index.html?event=${encodeURIComponent(ev.eventCode)}','_blank')">✉️ إرسال تذكير/شكر</button>
+        ${ev.slug
+          ? `<button class="small secondary" onclick="window.open('checkin.html?event=${encodeURIComponent(ev.eventCode)}&slug=${encodeURIComponent(ev.slug)}','_blank')">🔗 استيراد المؤكدين من الموقع</button>`
+          : ""}
         ${isFinished
           ? `<button class="small secondary" onclick="setStatus('${escapeHtml(ev.eventCode)}','active')">↩️ إعادة تفعيل</button>`
           : `<button class="small danger" onclick="setStatus('${escapeHtml(ev.eventCode)}','finished')">✅ إنهاء المناسبة</button>`}
@@ -296,18 +305,18 @@ function render() {
 
   app.innerHTML = `
     <div class="card">
-      <h3>🧪 اختبار نظام التذكير والشكر التلقائي</h3>
-      <p class="muted">يفحص كل مناسباتك النشطة ويرسل تذكير (قبل المناسبة) أو شكر (بعدها) تلقائيًا لمن حان وقتها — نفس الفحص اللي يصير تلقائي كل يوم، بس فوري. ⚠️ يرسل رسائل حقيقية فعلاً لو فيه مناسبة بتاريخها المناسب اليوم.</p>
+      <h3>🧪 اختبار نظام التذكير والشكر</h3>
+      <p class="muted">هذا الزر يشغّل نفس الفحص اللي يصير تلقائي كل يوم، بس فوراً — يفحص كل مناسباتك النشطة ويرسل تذكير/شكر لمن حان وقتها. تقدرين تضغطينه أي وقت تبين تتأكدين النظام شغال. ⚠️ يرسل رسائل حقيقية فعلاً لو فيه مناسبة بتاريخها المناسب اليوم.</p>
       <button id="testBtn" ${testLoading ? "disabled" : ""}>${testLoading ? "جاري الفحص..." : "🔄 افحصي الآن"}</button>
       ${testResult ? `<div class="${testResult.ok ? 'ok' : 'err'}">${escapeHtml(testResult.text)}</div>` : ""}
     </div>
 
     <div class="card">
       <h3>➕ فتح قسم عميلة جديدة</h3>
-      <p class="muted">كل عميلة يصير لها قسم مستقل يضل مفتوح لين تخلصين منه (تذكير + شكر) وتضغطين "إنهاء المناسبة". اسم قالب الدعوة لازم يكون مطابق تمامًا لاسم ملف الدعوة بالموقع (شوفيه بلوحة /admin أو برابط الدعوة نفسه، مثل rsvp/<b>wedding-classic</b>.html).</p>
+      <p class="muted">كل عميلة يصير لها قسم مستقل يضل مفتوح لين تخلصين منه (تذكير + شكر) وتضغطين "إنهاء المناسبة". لو عبّيتي اسم قالب الدعوة (slug)، بيقدر التطبيق يربط هذا القسم تلقائيًا بردود موقعكم لهذي الدعوة بدون ما تعيدين كتابته كل مرة.</p>
       <input type="text" id="newClientName" placeholder="اسم العميلة (مثال: سارة وأحمد)">
       <input type="text" id="newEventCode" placeholder="رمز المناسبة (تختارينه إنتي، مثال: SARA2026)" style="direction:ltr;text-align:left">
-      <input type="text" id="newSlug" placeholder="اسم قالب الدعوة بالموقع (مثال: wedding-classic)" style="direction:ltr;text-align:left">
+      <input type="text" id="newEventSlug" placeholder="اسم قالب الدعوة بالموقع - slug (اختياري، مثال: wedding-classic)" style="direction:ltr;text-align:left">
       <select id="newEventType">
         <option value="">نوع المناسبة (اختياري)</option>
         <option value="زفاف">زفاف</option>
@@ -332,7 +341,6 @@ function render() {
 
   const createBtn = document.getElementById("createBtn");
   if (createBtn) createBtn.addEventListener("click", createEvent);
-
   const testBtn = document.getElementById("testBtn");
   if (testBtn) testBtn.addEventListener("click", testDailyMessages);
 }

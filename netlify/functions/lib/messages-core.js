@@ -94,8 +94,8 @@ async function runDailyMessages() {
     const offset = ev.eventType === "مؤتمر" ? CORPORATE_OFFSET : PERSONAL_OFFSET;
     const diffDays = daysBetween(today, eventDate); // موجب = الحفل قدام، سالب = الحفل فات
 
-    const shouldSendReminder = diffDays === offset && !ev.reminderSent;
-    const shouldSendThankyou = diffDays === -offset && !ev.thankyouSent;
+    const shouldSendReminder = diffDays > 0 && diffDays <= offset && !ev.reminderSent;
+    const shouldSendThankyou = diffDays < 0 && diffDays >= -offset && !ev.thankyouSent;
 
     if (!shouldSendReminder && !shouldSendThankyou) continue;
 

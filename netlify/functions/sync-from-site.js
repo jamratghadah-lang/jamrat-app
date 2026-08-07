@@ -72,9 +72,9 @@ exports.handler = async (event) => {
     const guests = [];
     snap.forEach((doc) => {
       const f = doc.data() || {};
-      const style = f.style || "";
+      const eventSlug = f.eventSlug || f.style || "";
       const status = f.status || "";
-      if (style !== slug || status !== "yes") return;
+      if (eventSlug !== slug || status !== "yes") return;
 
       const name = f.name || "ضيف";
       const phone = f.phone || "";
