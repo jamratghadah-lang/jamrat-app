@@ -13,10 +13,11 @@ exports.handler=async(event)=>{
     if(!cloudName||!apiKey||!apiSecret) return json(500,{ok:false,message:'إعدادات Cloudinary ناقصة'});
     let body={}; try{body=JSON.parse(event.body||'{}')}catch{}
     const timestamp=Math.floor(Date.now()/1000);
+    const resourceType=String(body.resourceType||'video')==='image'?'image':'video';
     const folder=String(body.folder||'jamrat/invitations').replace(/[^a-zA-Z0-9_\/-]/g,'').slice(0,120)||'jamrat/invitations';
     const params=`folder=${folder}&timestamp=${timestamp}`;
     const signature=crypto.createHash('sha1').update(params+apiSecret).digest('hex');
-    return json(200,{ok:true,cloudName,apiKey,timestamp,folder,signature,resourceType:'video'});
+    return json(200,{ok:true,cloudName,apiKey,timestamp,folder,signature,resourceType});
   }catch(err){
     const code=err.message==='AUTH_REQUIRED'?401:err.message==='ADMIN_REQUIRED'?403:500;
     return json(code,{ok:false,message:err.message||'تعذر إنشاء توقيع Cloudinary'});

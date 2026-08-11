@@ -61,6 +61,7 @@ exports.handler = async (event) => {
   try {
     let sentAny = false;
     let lastError = null;
+    const results = [];
 
     if (videoUrl) {
       const r = await sendMsg({
@@ -71,6 +72,7 @@ exports.handler = async (event) => {
       });
       if (r.ok) sentAny = true;
       else lastError = r.data?.error?.message;
+      results.push({type:'video',ok:r.ok,messageId:r.data?.messages?.[0]?.id||'',error:r.ok?'':(r.data?.error?.message||'فشل')});
     }
 
     if (cardUrl) {
@@ -98,11 +100,11 @@ exports.handler = async (event) => {
     if (!sentAny) {
       return {
         statusCode: 200,
-        body: JSON.stringify({ ok: false, message: lastError || "فشل إرسال الواتساب" }),
+        body: JSON.stringify({ ok: false, message: lastError || "فشل إرسال الواتساب", results }),
       };
     }
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, results }) };
   } catch (err) {
     return {
       statusCode: 200,

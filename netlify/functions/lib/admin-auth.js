@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { getFirestore } = require('./firestore-admin');
 
 function b64u(v){return Buffer.from(v).toString('base64url')}
-function secret(){return process.env.ADMIN_SESSION_SECRET || process.env.SEND_SECRET || process.env.FIREBASE_SERVICE_ACCOUNT_JSON || ''}
+function secret(){return process.env.ADMIN_SESSION_SECRET || ''}
 function sign(payload){const head=b64u(JSON.stringify({alg:'HS256',typ:'JWT'}));const body=b64u(JSON.stringify(payload));const sig=crypto.createHmac('sha256',secret()).update(`${head}.${body}`).digest('base64url');return `${head}.${body}.${sig}`}
 function verify(token){if(!token||!secret()) throw new Error('AUTH_INVALID');const parts=String(token).split('.');if(parts.length!==3)throw new Error('AUTH_INVALID');const [h,p,s]=parts;const expected=crypto.createHmac('sha256',secret()).update(`${h}.${p}`).digest('base64url');const sBuf=Buffer.from(s);const expBuf=Buffer.from(expected);if(sBuf.length!==expBuf.length||!crypto.timingSafeEqual(sBuf,expBuf))throw new Error('AUTH_INVALID');let data;try{data=JSON.parse(Buffer.from(p,'base64url').toString('utf8'))}catch{throw new Error('AUTH_INVALID')}if(!data.exp||data.exp<Date.now())throw new Error('AUTH_EXPIRED');return data}
 function pbkdf2Verify(password, stored){const [saltHex,hashHex]=String(stored||'').split(':');if(!saltHex||!hashHex)return false;const out=crypto.pbkdf2Sync(String(password),Buffer.from(saltHex,'hex'),150000,32,'sha256').toString('hex');return crypto.timingSafeEqual(Buffer.from(out),Buffer.from(hashHex));}

@@ -68,7 +68,7 @@ exports.handler = async (event) => {
       };
     }
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, message: "تم إرسال البريد", messageId: data?.id || "" }) };
   } catch (err) {
     return {
       statusCode: 200,

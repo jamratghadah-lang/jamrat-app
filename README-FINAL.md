@@ -14,7 +14,7 @@
 - إنشاء المناسبة Hybrid ينشئ سجل `couples` في نفس Firestore الخاص بالموقع.
 - قوالب Hybrid مطابقة لأسماء ملفات `rsvp/` الموجودة في الموقع المرفوع.
 - مزامنة RSVP من الموقع تلقائيًا كل 10 دقائق + زر مزامنة يدوي.
-- QR بطاقة الضيف من الموقع يحمل `eventId + entryCode` ويُتحقق منه عبر Function الـCheck-in.
+- QR بطاقة الضيف من الموقع يحمل `personalCode` (وهو أيضًا `entryCode` افتراضيًا) ويُتحقق منه عبر Function الـCheck-in.
 - بطاقة الموقع تعرض عدد المرافقين.
 - فيديو التذكير يرسل مرة واحدة في الموعد المحدد قبل المناسبة.
 - فيديو الشكر يرسل مرة واحدة بعد المناسبة للحاضرين فقط.
@@ -46,9 +46,23 @@
 ## الموقع
 المجلد `site-patch/my_projet-main` هو نسخة الموقع المعدلة اللازمة للـHybrid:
 - يقرأ `eid` و`g` من الرابط.
-- يربط RSVP بـ`eventCode` و`guestId`.
+- يربط RSVP بـ`eventCode` و`personalCode` عبر `rsvp-submit` ويكتب في Firestore collection `rsvpResponses`.
 - يمنع تكرار سجل RSVP لنفس الضيف/المناسبة.
 - QR البطاقة يحمل بيانات Check-in متوافقة مع التطبيق.
 - بطاقة الضيف تعرض عدد المرافقين.
 
 يجب نشر التطبيق والموقع المعدلين معًا للحصول على المسار الكامل.
+
+## Admin Tools
+
+`admin-tools.html` is now a real maintenance console, protected by the same admin session. It includes:
+- system health checks (Firestore, Admin Session Secret, Cloudinary, WhatsApp, Resend)
+- event statistics from Firestore
+- manual RSVP sync
+- finish / reactivate event
+- manual archive / restore without deleting data
+- automatic archive function scheduled daily; events older than 24h are archived
+- RSVP link open/copy helper
+- integration vault and event media management
+
+Set `ADMIN_SESSION_SECRET` to a dedicated random secret. It is no longer derived from the Firebase Service Account JSON.

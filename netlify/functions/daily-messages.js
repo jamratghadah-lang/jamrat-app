@@ -7,7 +7,7 @@
 const { schedule } = require("@netlify/functions");
 const { runDailyMessages } = require("./lib/messages-core");
 
-exports.handler = schedule("@daily", async (event) => {
+exports.handler = schedule("*/5 * * * *", async (event) => {
   try {
     const result = await runDailyMessages();
     return { statusCode: 200, body: JSON.stringify(result) };

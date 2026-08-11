@@ -37,7 +37,7 @@ function decrypt(payload) {
 const ALLOWED_KEYS = new Set([
   'whatsappToken', 'whatsappPhoneId', 'sendSecret',
   'resendApiKey', 'sendFrom',
-  'cloudinaryCloudName', 'cloudinaryApiKey', 'cloudinaryApiSecret', 'cloudinaryUploadPreset'
+  'cloudinaryCloudName', 'cloudinaryApiKey', 'cloudinaryApiSecret', 'cloudinaryUploadPreset', 'siteBaseUrl', 'netlifySiteUrl', 'firebaseProjectId', 'firebaseWebApiKey'
 ]);
 
 async function getSettingsDoc() {

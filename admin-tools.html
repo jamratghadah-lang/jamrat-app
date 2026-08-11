@@ -41,7 +41,7 @@
   .bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
   .bar > i{display:block;height:100%;width:0;background:var(--gold)}
   .topbar{display:flex;justify-content:space-between;align-items:center}
-  .link{color:var(--gold-d);text-decoration:none;font-size:.85rem}
+  .link{color:var(--gold-d);text-decoration:none;font-size:.85rem}.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.stat{border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}.stat b{display:block;font-size:1.25rem}.stat span{font-size:.75rem;color:var(--muted)}@media(max-width:560px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -85,6 +85,45 @@
       <h2>🎬 فيديوهات المناسبة</h2>
       <div class="small">حد أقصى 15 ميجا لكل فيديو (نفس حد التطبيق الرئيسي).</div>
       <div id="videoSlots"></div>
+    </div>
+
+    <div class="card">
+      <h2>🛠️ صحة النظام</h2>
+      <div class="small">فحص Firestore، الأسرار الأساسية، Cloudinary، WhatsApp وResend من السيرفر.</div>
+      <div class="row" style="margin-top:10px"><button class="btn-gold" id="healthBtn">فحص الآن</button></div>
+      <div id="healthResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>📊 فحص المناسبة</h2>
+      <div class="small">إحصائيات الضيوف وCheck-in مباشرة من Firestore.</div>
+      <div class="row" style="margin-top:10px"><button class="btn-gold" id="statsBtn">تحديث الإحصائيات</button></div>
+      <div id="statsResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>🔄 المزامنة والصيانة</h2>
+      <div class="small">مزامنة ردود RSVP للمناسبة الحالية، أو تغيير حالتها وأرشفتها بدون حذف البيانات.</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn-gold" id="syncBtn">مزامنة من الموقع</button>
+        <button class="btn-ghost" id="finishBtn">إنهاء المناسبة</button>
+        <button class="btn-ghost" id="activateBtn">إعادة تفعيل</button>
+        <button class="btn-danger" id="archiveBtn">أرشفة</button>
+        <button class="btn-ghost" id="restoreBtn">استعادة من الأرشيف</button>
+      </div>
+      <div id="maintenanceMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>🔗 اختبار رابط RSVP وQR</h2>
+      <label>رابط الدعوة</label>
+      <input id="rsvpUrl" placeholder="https://jamratghadah.com/..." />
+      <div class="row" style="margin-top:10px">
+        <button class="btn-gold" id="openRsvpBtn">فتح الرابط</button>
+        <button class="btn-ghost" id="copyRsvpBtn">نسخ الرابط</button>
+      </div>
+      <div class="small" style="margin-top:8px">هذه أداة فحص فقط؛ لا تغيّر بيانات الضيوف.</div>
+      <div id="rsvpMsg"></div>
     </div>
 
     <div class="card">
@@ -146,11 +185,17 @@ async function apiCall(path, opts){
 async function doLogin(username, password){
   const msgEl = document.getElementById('loginMsg');
   clearMsg(msgEl);
-  const r = await apiCall('/admin-session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
+  let r;
+  try {
+    r = await apiCall('/admin-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+  } catch (e) {
+    if (e.message !== 'SESSION_EXPIRED') showMsg(msgEl, 'err', 'تعذر الاتصال بالسيرفر — تأكدي من اتصال الإنترنت أو إعدادات النشر على Netlify');
+    return false;
+  }
   if (r.ok && r.data.token) {
     sessionStorage.setItem('jamrat_admin_token', r.data.token);
     document.getElementById('loginCard').classList.add('hidden');
@@ -360,6 +405,30 @@ document.getElementById('intSaveBtn').addEventListener('click', async () => {
     }
   } catch (e) { if (e.message !== 'SESSION_EXPIRED') showMsg(msgEl, 'err', 'تعذر الاتصال بالسيرفر'); }
 });
+
+async function selectedEventId(){ if(!currentEventId){ showMsg(document.getElementById('eventMsg'),'warn','اختاري مناسبة أول'); return null; } return currentEventId; }
+
+async function runHealth(){
+ const el=document.getElementById('healthResult'); el.innerHTML='<div class="small">جارٍ الفحص...</div>';
+ try{const r=await apiCall('/admin-health',{headers:authHeaders()}); if(!r.ok){showMsg(el,'err',r.data.message||'فشل الفحص');return;} const c=r.data.checks||{};
+ const rows=[['Firestore',c.firestore?.ok],['Service Account',c.env?.firebaseServiceAccount],['Session Secret',c.env?.adminSessionSecret],['Cloudinary',c.env?.cloudinary],['WhatsApp',c.env?.whatsapp],['Resend',c.env?.resend]];
+ el.innerHTML=rows.map(x=>`<div class="key-row"><span class="key-name"><span class="dot ${x[1]?'on':'off'}"></span>${x[0]}</span><span class="small">${x[1]?'جاهز':'غير مضبوط'}</span></div>`).join('');
+ }catch(e){if(e.message!=='SESSION_EXPIRED')showMsg(el,'err','تعذر الاتصال بالسيرفر');}
+}
+async function runStats(){
+ const el=document.getElementById('statsResult'); const id=await selectedEventId(); if(!id)return; el.innerHTML='<div class="small">جارٍ التحميل...</div>';
+ try{const r=await apiCall('/event-stats?eventId='+encodeURIComponent(id),{headers:authHeaders()}); if(!r.ok||!r.data.ok){showMsg(el,'err',r.data.message||'فشل');return;} const s=r.data.stats; el.innerHTML=`<div class="stat-grid"><div class="stat"><b>${s.total}</b><span>إجمالي</span></div><div class="stat"><b>${s.confirmed}</b><span>مؤكد</span></div><div class="stat"><b>${s.checkedIn}</b><span>حضر</span></div><div class="stat"><b>${s.declined}</b><span>معتذر</span></div><div class="stat"><b>${s.pending}</b><span>لم يرد</span></div><div class="stat"><b>${s.companions}</b><span>مرافقون</span></div></div>`;}catch(e){if(e.message!=='SESSION_EXPIRED')showMsg(el,'err','تعذر الاتصال بالسيرفر');}
+}
+async function eventAction(path, body, success){const el=document.getElementById('maintenanceMsg'); const id=await selectedEventId(); if(!id)return; if(body.archived===true&&!confirm('تأكيد أرشفة المناسبة؟ البيانات لن تُحذف.'))return; try{const r=await apiCall(path,{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({...body,eventCode:id})}); if(r.ok&&r.data.ok){showMsg(el,'ok',success);loadEvents();}else showMsg(el,'err',r.data.message||'تعذر تنفيذ العملية');}catch(e){if(e.message!=='SESSION_EXPIRED')showMsg(el,'err','تعذر الاتصال بالسيرفر');}}
+document.getElementById('healthBtn').addEventListener('click',runHealth);
+document.getElementById('statsBtn').addEventListener('click',runStats);
+document.getElementById('syncBtn').addEventListener('click',async()=>{const el=document.getElementById('maintenanceMsg');const id=await selectedEventId();if(!id)return;try{const r=await apiCall('/sync-from-site',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({eventCode:id,coupleSlug:(document.querySelector('#eventSelect option:checked')?.textContent||'').split(' — ')[0],pin:prompt('اكتبي PIN المناسبة للمزامنة:')||''})});showMsg(el,r.ok&&r.data.ok?'ok':'err',r.data.message||`تمت المزامنة: ${r.data.count||0}`);if(r.ok&&r.data.ok)runStats();}catch(e){if(e.message!=='SESSION_EXPIRED')showMsg(el,'err','تعذر الاتصال بالسيرفر');}});
+document.getElementById('finishBtn').addEventListener('click',()=>eventAction('/event-finish',{status:'finished'},'تم إنهاء المناسبة.'));
+document.getElementById('activateBtn').addEventListener('click',()=>eventAction('/event-finish',{status:'active'},'تمت إعادة تفعيل المناسبة.'));
+document.getElementById('archiveBtn').addEventListener('click',()=>eventAction('/event-archive',{archived:true},'تمت أرشفة المناسبة بدون حذف البيانات.'));
+document.getElementById('restoreBtn').addEventListener('click',()=>eventAction('/event-archive',{archived:false},'تمت استعادة المناسبة من الأرشيف.'));
+document.getElementById('openRsvpBtn').addEventListener('click',()=>{const u=document.getElementById('rsvpUrl').value.trim();if(!/^https?:\/\//i.test(u)){showMsg(document.getElementById('rsvpMsg'),'err','اكتبي رابطًا صحيحًا');return;}window.open(u,'_blank','noopener');});
+document.getElementById('copyRsvpBtn').addEventListener('click',async()=>{const u=document.getElementById('rsvpUrl').value.trim();if(!u)return;try{await navigator.clipboard.writeText(u);showMsg(document.getElementById('rsvpMsg'),'ok','تم نسخ الرابط ✅');}catch{showMsg(document.getElementById('rsvpMsg'),'err','تعذر النسخ من المتصفح');}});
 
 // جلسة موجودة أصلًا؟ (نفس مفتاح التطبيق الرئيسي)
 if (token()) {
