@@ -1,3 +1,4 @@
+const { requireAdmin } = require('./lib/admin-auth');
 // netlify/functions/send-whatsapp.js
 //
 // يرسل رسالة واتساب حقيقية عبر Meta Cloud API.
@@ -13,15 +14,14 @@
 // ملاحظة مهم: فيديو الواتساب عبر Cloud API لازم يكون حجمه أقل من 16 ميجا،
 // ورابطه لازم يكون رابط عام (public) يقدر يوصله سيرفر Meta -- رابط Cloudinary يشتغل تمام.
 
+const { getIntegration } = require('./lib/integration-settings');
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  const secret = event.headers["x-send-secret"] || event.headers["X-Send-Secret"];
-  if (!process.env.SEND_SECRET || secret !== process.env.SEND_SECRET) {
-    return { statusCode: 401, body: JSON.stringify({ ok: false, message: "كلمة السر غير صحيحة" }) };
-  }
+  try { await requireAdmin(event); } catch (err) { return { statusCode: 401, body: JSON.stringify({ ok:false, message:"المصادقة مطلوبة" }) }; }
 
   let payload;
   try {
@@ -35,8 +35,8 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ ok: false, message: "رقم الجوال مطلوب" }) };
   }
 
-  const token = process.env.WHATSAPP_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_ID;
+  const token = await getIntegration('whatsappToken').catch(() => '') || process.env.WHATSAPP_TOKEN;
+  const phoneId = await getIntegration('whatsappPhoneId').catch(() => '') || process.env.WHATSAPP_PHONE_ID;
   if (!token || !phoneId) {
     return { statusCode: 500, body: JSON.stringify({ ok: false, message: "إعدادات واتساب ناقصة بالسيرفر" }) };
   }

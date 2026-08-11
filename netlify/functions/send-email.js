@@ -1,3 +1,4 @@
+const { requireAdmin } = require('./lib/admin-auth');
 // netlify/functions/send-email.js
 //
 // يرسل إيميل حقيقي عبر Resend، ويرفق الفيديو وصورة البطاقة كمرفقات حقيقية
@@ -12,15 +13,14 @@
 // ملاحظة: حجم المرفقات الإجمالي عند Resend له حد أقصى (عادة حوالي 40 ميجا)،
 // فيديو 15 ميجا + صورة بطاقة صغيرة يدخل ضمن الحد بارتياح.
 
+const { getIntegration } = require('./lib/integration-settings');
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  const secret = event.headers["x-send-secret"] || event.headers["X-Send-Secret"];
-  if (!process.env.SEND_SECRET || secret !== process.env.SEND_SECRET) {
-    return { statusCode: 401, body: JSON.stringify({ ok: false, message: "كلمة السر غير صحيحة" }) };
-  }
+  try { await requireAdmin(event); } catch (err) { return { statusCode: 401, body: JSON.stringify({ ok:false, message:"المصادقة مطلوبة" }) }; }
 
   let payload;
   try {
@@ -34,8 +34,8 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ ok: false, message: "الإيميل مطلوب" }) };
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.SEND_FROM;
+  const apiKey = await getIntegration('resendApiKey').catch(() => '') || process.env.RESEND_API_KEY;
+  const from = await getIntegration('sendFrom').catch(() => '') || process.env.SEND_FROM;
   if (!apiKey || !from) {
     return { statusCode: 500, body: JSON.stringify({ ok: false, message: "إعدادات الإيميل ناقصة بالسيرفر" }) };
   }

@@ -1,132 +1,31 @@
-// netlify/functions/lib/messages-core.js
-//
-// المنطق الفعلي لفحص كل المناسبات النشطة وإرسال تذكير/شكر لمن حان وقتها.
-// يُستخدم من مكانين:
-//   - daily-messages.js (يشتغل تلقائي كل يوم بجدول)
-//   - run-daily-messages-now.js (تشغيل يدوي فوري من زر "افحصي الآن")
+const { getFirestore, FieldValue } = require('./firestore-admin');
+const { getIntegration } = require('./integration-settings');
 
-const { getStore } = require("@netlify/blobs");
+function daysBetween(a,b){const MS=86400000;const da=new Date(a.getFullYear(),a.getMonth(),a.getDate());const db=new Date(b.getFullYear(),b.getMonth(),b.getDate());return Math.round((db-da)/MS)}
+async function sendWhatsapp(to,message,videoUrl){
+  const token=await getIntegration('whatsappToken').catch(()=> '')||process.env.WHATSAPP_TOKEN; const phoneId=await getIntegration('whatsappPhoneId').catch(()=> '')||process.env.WHATSAPP_PHONE_ID;
+  if(!token||!phoneId||!to)return false; const digits=String(to).replace(/[^0-9]/g,''); if(digits.length<8)return false;
+  try{let ok=false;const base={messaging_product:'whatsapp',to:digits};if(videoUrl){const r=await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({...base,type:'video',video:{link:videoUrl}})});ok=r.ok}if(message){const r=await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({...base,type:'text',text:{body:message}})});ok=r.ok||ok}return ok}catch{return false}
+}
+async function sendEmail(to,subject,text,videoUrl){const apiKey=await getIntegration('resendApiKey').catch(()=> '')||process.env.RESEND_API_KEY;const from=await getIntegration('sendFrom').catch(()=> '')||process.env.SEND_FROM;if(!apiKey||!from||!to||!String(to).includes('@'))return false;try{const attachments=videoUrl?[{filename:'jamrat-video.mp4',path:videoUrl}]:undefined;const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({from,to:[to],subject,text,attachments})});return r.ok}catch{return false}}
+function buildMessage(kind,guestName,clientName,rsvpLink){if(kind==='reminder')return `هلا ${guestName} 💛\n\nتذكير بسيط إن موعد "${clientName}" قرب!\n${rsvpLink||''}\n\nبانتظارك 🤍`;return `هلا ${guestName} 💛\n\nشكراً من قلبنا إنك شرّفتينا بـ"${clientName}"! سعدنا فعلاً بوجودك معنا.\n\nبكل حب 🤍`}
 
-const PERSONAL_OFFSET = 2; // أيام - زفاف/مولود/تخرج/غيرها
-const CORPORATE_OFFSET = 7; // أيام - مؤتمر/شركات
-
-function daysBetween(a, b) {
-  const MS = 1000 * 60 * 60 * 24;
-  const da = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-  const db = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-  return Math.round((db - da) / MS);
+async function getEventMedia(db,eventId){
+  // فيديوهات المناسبة تُحفظ من event-media.js بمجموعة jamratEventMedia،
+  // مو كحقول على مستند events مباشرة — لازم نقرأ من نفس المكان اللي يُكتب فيه.
+  try{const snap=await db.collection('jamratEventMedia').doc(String(eventId)).get();return snap.exists?(snap.data()||{}):{}}catch{return{}}
 }
 
-async function sendWhatsappText(to, message) {
-  const token = process.env.WHATSAPP_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_ID;
-  if (!token || !phoneId || !to) return false;
-  const digits = String(to).replace(/[^0-9]/g, "");
-  if (digits.length < 8) return false;
-  try {
-    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: digits,
-        type: "text",
-        text: { body: message },
-      }),
-    });
-    return res.ok;
-  } catch {
-    return false;
+async function runDailyMessages(){
+  const db=getFirestore(); const snap=await db.collection('events').where('status','==','active').get(); const today=new Date(); let sentCount=0,checkedEvents=0,updated=0;
+  for(const eventDoc of snap.docs){const ev={id:eventDoc.id,...eventDoc.data()};if(!ev.eventDate)continue;checkedEvents++;const date=new Date(ev.eventDate);if(isNaN(date.getTime()))continue;
+    const reminderOffset=Math.max(0,Number(ev.reminderOffsetDays ?? (ev.eventType==='مؤتمر'?7:2))); const diff=daysBetween(today,date);
+    const reminder=diff===reminderOffset && !ev.reminderSent; const thankDelay=Math.max(0,Number(ev.thankyouDelayDays ?? 1)); const thank=diff===-thankDelay && !ev.thankyouSent; if(!reminder&&!thank)continue;
+    const guestsSnap=await eventDoc.ref.collection('guests').get(); const guests=guestsSnap.docs.map(d=>({id:d.id,...d.data()})); const kind=reminder?'reminder':'thankyou';
+    const media=await getEventMedia(db,ev.id);
+    for(const guest of guests){if(thank&&!(guest.checkedIn||guest.arrivedAt||guest.status==='attended'))continue;const msg=buildMessage(kind,guest.name||'',ev.clientName||ev.title||'',guest.rsvpLink);const video=reminder?(guest.reminderVideoUrl||media.reminderVideoUrl||ev.reminderVideoUrl):(guest.thankyouVideoUrl||media.thankyouVideoUrl||ev.thankyouVideoUrl);const [wa,email]=await Promise.all([sendWhatsapp(guest.phone,msg,video),sendEmail(guest.email,reminder?'تذكير بموعد دعوتك ✨':'شكراً لحضورك 🤍',msg,video)]);if(wa||email)sentCount++;}
+    const patch=reminder?{reminderSent:true,reminderSentAt:FieldValue.serverTimestamp()}:{thankyouSent:true,thankyouSentAt:FieldValue.serverTimestamp()};await eventDoc.ref.set(patch,{merge:true});updated++;
   }
+  return{ok:true,sentCount,checkedEvents,updated};
 }
-
-async function sendEmailText(to, subject, text) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.SEND_FROM;
-  if (!apiKey || !from || !to || !to.includes("@")) return false;
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [to], subject, text }),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-function buildMessage(kind, guestName, clientName, rsvpLink) {
-  if (kind === "reminder") {
-    return (
-      `هلا ${guestName} 💛\n\n` +
-      `تذكير بسيط إن موعد "${clientName}" قرب! لو ما أكدتي حضورك بعد، ياليت تأكدينه من هنا:\n` +
-      `${rsvpLink || ""}\n\n` +
-      `بانتظارك 🤍`
-    );
-  }
-  return (
-    `هلا ${guestName} 💛\n\n` +
-    `شكراً من قلبنا إنك شرّفتينا بـ"${clientName}"! سعدنا فعلاً بوجودك معنا.\n\n` +
-    `بكل حب 🤍`
-  );
-}
-
-// يرجع {ok, sentCount, checkedEvents}
-async function runDailyMessages() {
-  const registryStore = getStore({ name: "jamrat-events-registry", consistency: "strong" });
-  const eventsStore = getStore({ name: "jamrat-events", consistency: "strong" });
-
-  const registry = (await registryStore.get("index", { type: "json" })) || { events: [] };
-  const events = registry.events || [];
-  const today = new Date();
-  let changed = false;
-  let sentCount = 0;
-  let checkedEvents = 0;
-
-  for (const ev of events) {
-    if (ev.status !== "active" || !ev.eventDate) continue;
-    checkedEvents++;
-
-    const eventDate = new Date(ev.eventDate);
-    if (isNaN(eventDate.getTime())) continue;
-
-    const offset = ev.eventType === "مؤتمر" ? CORPORATE_OFFSET : PERSONAL_OFFSET;
-    const diffDays = daysBetween(today, eventDate); // موجب = الحفل قدام، سالب = الحفل فات
-
-    const shouldSendReminder = diffDays > 0 && diffDays <= offset && !ev.reminderSent;
-    const shouldSendThankyou = diffDays < 0 && diffDays >= -offset && !ev.thankyouSent;
-
-    if (!shouldSendReminder && !shouldSendThankyou) continue;
-
-    let eventData;
-    try {
-      eventData = await eventsStore.get(ev.eventCode, { type: "json" });
-    } catch {
-      eventData = null;
-    }
-    if (!eventData || !Array.isArray(eventData.guests)) continue;
-
-    const kind = shouldSendReminder ? "reminder" : "thankyou";
-    const subject = kind === "reminder" ? "تذكير بموعد دعوتك ✨" : "شكراً لحضورك 🤍";
-
-    for (const guest of eventData.guests) {
-      const message = buildMessage(kind, guest.name || "", ev.clientName || "", guest.rsvpLink);
-      const waOk = await sendWhatsappText(guest.phone, message);
-      const emailOk = await sendEmailText(guest.email, subject, message);
-      if (waOk || emailOk) sentCount++;
-    }
-
-    if (shouldSendReminder) ev.reminderSent = true;
-    if (shouldSendThankyou) ev.thankyouSent = true;
-    changed = true;
-  }
-
-  if (changed) {
-    await registryStore.setJSON("index", { events });
-  }
-
-  return { ok: true, sentCount, checkedEvents };
-}
-
-module.exports = { runDailyMessages };
+module.exports={runDailyMessages};

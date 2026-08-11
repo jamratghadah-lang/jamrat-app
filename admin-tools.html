@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>جمرة غادة — أدوات الفيديو والتكاملات</title>
+<style>
+  :root{
+    --bg:#faf7f2; --card:#ffffff; --ink:#2a2320; --muted:#7a6f66;
+    --gold:#b6862c; --gold-d:#8f6a20; --line:#e8ddd0;
+    --ok:#1f7a4d; --err:#b3261e; --warn:#8a6d00;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Tajawal","Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:1.25rem;margin:8px 0 2px}
+  .sub{color:var(--muted);font-size:.85rem;margin-bottom:20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  .card h2{font-size:1rem;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  label{display:block;font-size:.82rem;color:var(--muted);margin:10px 0 4px}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:.95rem;background:#fff;color:var(--ink)}
+  button{cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size:.9rem;font-weight:600}
+  .btn-gold{background:var(--gold);color:#fff}
+  .btn-gold:hover{background:var(--gold-d)}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn-danger{background:#fde8e6;color:var(--err)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:.85rem}
+  .msg.ok{background:#e8f6ee;color:var(--ok)}
+  .msg.err{background:#fdeceb;color:var(--err)}
+  .msg.warn{background:#fff6e0;color:var(--warn)}
+  .hidden{display:none}
+  .key-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+  .key-row:last-child{border-bottom:none}
+  .key-name{flex:1;font-size:.88rem}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-inline-end:6px}
+  .dot.on{background:var(--ok)} .dot.off{background:#ccc}
+  .small{font-size:.78rem;color:var(--muted)}
+  .video-slot{border:1px dashed var(--line);border-radius:10px;padding:12px;margin-top:10px}
+  .video-slot .cur{font-size:.78rem;color:var(--muted);word-break:break-all;margin-bottom:8px}
+  .bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
+  .bar > i{display:block;height:100%;width:0;background:var(--gold)}
+  .topbar{display:flex;justify-content:space-between;align-items:center}
+  .link{color:var(--gold-d);text-decoration:none;font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>أدوات الفيديو والتكاملات</h1>
+      <div class="sub">صفحة مستقلة تتصل بنفس دوال السيرفر الموجودة أصلًا — ما تلمس بيانات التطبيق الرئيسي.</div>
+    </div>
+    <a class="link" href="./index.html">رجوع للتطبيق</a>
+  </div>
+
+  <!-- تسجيل الدخول -->
+  <div class="card" id="loginCard">
+    <h2>تسجيل الدخول</h2>
+    <label>اسم المستخدم</label>
+    <input id="loginUser" autocomplete="username" />
+    <label>كلمة المرور</label>
+    <input id="loginPass" type="password" autocomplete="current-password" />
+    <div class="row" style="margin-top:14px">
+      <button class="btn-gold" id="loginBtn">دخول</button>
+      <button class="btn-ghost hidden" id="fixLoginBtn">إصلاح حساب الدخول</button>
+    </div>
+    <div class="small" style="margin-top:8px">
+      لو رجّع لك خطأ "بيانات الدخول غير صحيحة" بأول مرة تستخدمين فيها هالصفحة (رغم إن الحساب شغال بالتطبيق الرئيسي)،
+      اضغطي "إصلاح حساب الدخول" — هذا يزامن حسابك مع السيرفر مرة وحدة بس.
+    </div>
+    <div id="loginMsg"></div>
+  </div>
+
+  <!-- بعد الدخول -->
+  <div id="app" class="hidden">
+    <div class="card">
+      <h2>المناسبة</h2>
+      <label>اختاري المناسبة</label>
+      <select id="eventSelect"><option value="">-- تحميل... --</option></select>
+      <div id="eventMsg"></div>
+    </div>
+
+    <div class="card" id="videoCard">
+      <h2>🎬 فيديوهات المناسبة</h2>
+      <div class="small">حد أقصى 15 ميجا لكل فيديو (نفس حد التطبيق الرئيسي).</div>
+      <div id="videoSlots"></div>
+    </div>
+
+    <div class="card">
+      <h2>🔌 مركز التكاملات</h2>
+      <div class="small">القيم المحفوظة مشفّرة بالسيرفر — ما تنعرض هنا بعد الحفظ، بس نوضح إذا كانت مضبوطة أو لا.</div>
+      <div id="integList"></div>
+      <hr style="border:none;border-top:1px solid var(--line);margin:14px 0" />
+      <label>المفتاح</label>
+      <select id="intKey"></select>
+      <label>القيمة</label>
+      <input id="intValue" placeholder="الصق القيمة هنا" />
+      <div class="row" style="margin-top:10px">
+        <button class="btn-gold" id="intSaveBtn">حفظ</button>
+      </div>
+      <div id="intMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/.netlify/functions';
+const VIDEO_SLOTS = [
+  { key: 'invitationVideoUrl', label: 'فيديو الدعوة' },
+  { key: 'reminderVideoUrl', label: 'فيديو التذكير' },
+  { key: 'thankyouVideoUrl', label: 'فيديو الشكر' },
+];
+const INTEGRATION_KEYS = [
+  { key: 'whatsappToken', label: 'WhatsApp Token' },
+  { key: 'whatsappPhoneId', label: 'WhatsApp Phone ID' },
+  { key: 'sendSecret', label: 'Send Secret' },
+  { key: 'resendApiKey', label: 'Resend API Key' },
+  { key: 'sendFrom', label: 'عنوان المرسل (Send From)' },
+  { key: 'cloudinaryCloudName', label: 'Cloudinary Cloud Name' },
+  { key: 'cloudinaryApiKey', label: 'Cloudinary API Key' },
+  { key: 'cloudinaryApiSecret', label: 'Cloudinary API Secret' },
+  { key: 'cloudinaryUploadPreset', label: 'Cloudinary Upload Preset' },
+];
+const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
+
+function token(){ return sessionStorage.getItem('jamrat_admin_token') || ''; }
+function authHeaders(extra){ return Object.assign({ Authorization: 'Bearer ' + token() }, extra || {}); }
+function showMsg(el, type, text){ el.innerHTML = `<div class="msg ${type}">${text}</div>`; }
+function clearMsg(el){ el.innerHTML = ''; }
+
+async function apiCall(path, opts){
+  const res = await fetch(API + path, opts);
+  let data = {};
+  try { data = await res.json(); } catch {}
+  if (res.status === 401) {
+    sessionStorage.removeItem('jamrat_admin_token');
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('loginCard').classList.remove('hidden');
+    showMsg(document.getElementById('loginMsg'), 'err', 'انتهت الجلسة، سجّلي دخول من جديد.');
+    throw new Error('SESSION_EXPIRED');
+  }
+  return { ok: res.ok, status: res.status, data };
+}
+
+async function doLogin(username, password){
+  const msgEl = document.getElementById('loginMsg');
+  clearMsg(msgEl);
+  const r = await apiCall('/admin-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  if (r.ok && r.data.token) {
+    sessionStorage.setItem('jamrat_admin_token', r.data.token);
+    document.getElementById('loginCard').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('fixLoginBtn').classList.add('hidden');
+    initApp();
+    return true;
+  }
+  showMsg(msgEl, 'err', r.data.message || 'تعذر تسجيل الدخول');
+  document.getElementById('fixLoginBtn').classList.remove('hidden');
+  return false;
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (!u || !p) { showMsg(document.getElementById('loginMsg'), 'err', 'اكتبي اسم المستخدم وكلمة المرور'); return; }
+  await doLogin(u, p);
+});
+
+document.getElementById('fixLoginBtn').addEventListener('click', async () => {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const msgEl = document.getElementById('loginMsg');
+  if (!u || !p) { showMsg(msgEl, 'err', 'اكتبي اسم المستخدم وكلمة المرور فوق أول'); return; }
+  showMsg(msgEl, 'warn', 'جارٍ الإصلاح...');
+  try {
+    const res = await fetch(API + '/admin-bootstrap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      showMsg(msgEl, 'err', data.message || 'تعذر الإصلاح — تأكدي إن اسم المستخدم وكلمة المرور نفس المستخدمين بالتطبيق الرئيسي');
+      return;
+    }
+    showMsg(msgEl, 'ok', 'تم الإصلاح — نسجّل الدخول...');
+    await doLogin(u, p);
+  } catch {
+    showMsg(msgEl, 'err', 'تعذر الاتصال بالسيرفر');
+  }
+});
+
+// ---------- بعد الدخول ----------
+let currentEventId = '';
+
+async function initApp(){
+  await loadEvents();
+  await loadIntegrations();
+  populateIntegrationKeySelect();
+}
+
+async function loadEvents(){
+  const sel = document.getElementById('eventSelect');
+  const msgEl = document.getElementById('eventMsg');
+  try {
+    const r = await apiCall('/events-list', { headers: authHeaders() });
+    if (!r.ok || !r.data.ok) { showMsg(msgEl, 'err', r.data.message || 'تعذر تحميل المناسبات'); return; }
+    const events = r.data.events || [];
+    sel.innerHTML = '<option value="">-- اختاري مناسبة --</option>' +
+      events.map(e => `<option value="${e.id}">${(e.name || e.title || 'بدون اسم')} — ${e.eventDate || ''}</option>`).join('');
+    sel.onchange = () => { currentEventId = sel.value; renderVideoSlots(); };
+  } catch (e) { if (e.message !== 'SESSION_EXPIRED') showMsg(msgEl, 'err', 'تعذر الاتصال بالسيرفر'); }
+}
+
+async function renderVideoSlots(){
+  const container = document.getElementById('videoSlots');
+  if (!currentEventId) { container.innerHTML = '<div class="small">اختاري مناسبة فوق أول.</div>'; return; }
+  container.innerHTML = '<div class="small">جارٍ التحميل...</div>';
+  let media = {};
+  try {
+    const r = await apiCall('/event-media?eventId=' + encodeURIComponent(currentEventId), { headers: authHeaders() });
+    if (r.ok && r.data.ok) media = r.data.media || {};
+  } catch (e) { if (e.message !== 'SESSION_EXPIRED') { container.innerHTML = '<div class="small">تعذر تحميل الفيديوهات.</div>'; return; } }
+
+  container.innerHTML = VIDEO_SLOTS.map(s => `
+    <div class="video-slot" data-key="${s.key}">
+      <strong>${s.label}</strong>
+      <div class="cur">${media[s.key] ? '✅ مرفوع: ' + media[s.key] : '— ما فيه فيديو مرفوع —'}</div>
+      <input type="file" accept="video/mp4,video/*" class="fileInput" />
+      <div class="row" style="margin-top:8px">
+        <button class="btn-gold uploadBtn">رفع</button>
+      </div>
+      <div class="bar"><i></i></div>
+      <div class="slotMsg"></div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.video-slot').forEach(slot => {
+    const key = slot.dataset.key;
+    const fileInput = slot.querySelector('.fileInput');
+    const uploadBtn = slot.querySelector('.uploadBtn');
+    const bar = slot.querySelector('.bar');
+    const barInner = slot.querySelector('.bar > i');
+    const slotMsg = slot.querySelector('.slotMsg');
+
+    uploadBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) { showMsg(slotMsg, 'err', 'اختاري ملف فيديو أول'); return; }
+      if (file.size > MAX_VIDEO_BYTES) { showMsg(slotMsg, 'err', 'حجم الفيديو أكبر من 15 ميجا'); return; }
+      clearMsg(slotMsg);
+      bar.style.display = 'block'; barInner.style.width = '5%';
+
+      try {
+        const sigRes = await apiCall('/cloudinary-signature', {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ folder: `jamrat/${currentEventId}/${key}` }),
+        });
+        if (!sigRes.ok || !sigRes.data.ok) {
+          showMsg(slotMsg, 'err', sigRes.data.message || 'تعذر الحصول على توقيع الرفع (تأكدي إن إعدادات Cloudinary مضبوطة بمركز التكاملات تحت)');
+          bar.style.display = 'none';
+          return;
+        }
+        const { cloudName, apiKey, timestamp, folder, signature, resourceType } = sigRes.data;
+        barInner.style.width = '25%';
+
+        const form = new FormData();
+        form.append('file', file);
+        form.append('api_key', apiKey);
+        form.append('timestamp', timestamp);
+        form.append('signature', signature);
+        form.append('folder', folder);
+
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType || 'video'}/upload`, {
+          method: 'POST',
+          body: form,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok || !uploadData.secure_url) {
+          showMsg(slotMsg, 'err', uploadData?.error?.message || 'فشل الرفع لـ Cloudinary');
+          bar.style.display = 'none';
+          return;
+        }
+        barInner.style.width = '75%';
+
+        const saveRes = await apiCall('/event-media?eventId=' + encodeURIComponent(currentEventId), {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ [key]: uploadData.secure_url }),
+        });
+        if (!saveRes.ok || !saveRes.data.ok) {
+          showMsg(slotMsg, 'err', 'اترفع الفيديو لكن ما انحفظ رابطه بالمناسبة: ' + (saveRes.data.message || ''));
+          bar.style.display = 'none';
+          return;
+        }
+        barInner.style.width = '100%';
+        showMsg(slotMsg, 'ok', 'تم الرفع والحفظ بنجاح ✅');
+        setTimeout(() => renderVideoSlots(), 700);
+      } catch (e) {
+        if (e.message !== 'SESSION_EXPIRED') showMsg(slotMsg, 'err', 'صار خطأ أثناء الرفع');
+        bar.style.display = 'none';
+      }
+    });
+  });
+}
+
+function populateIntegrationKeySelect(){
+  const sel = document.getElementById('intKey');
+  sel.innerHTML = INTEGRATION_KEYS.map(k => `<option value="${k.key}">${k.label}</option>`).join('');
+}
+
+async function loadIntegrations(){
+  const list = document.getElementById('integList');
+  list.innerHTML = '<div class="small">جارٍ التحميل...</div>';
+  try {
+    const r = await apiCall('/integration-settings', { headers: authHeaders() });
+    if (!r.ok || !r.data.ok) { list.innerHTML = '<div class="small">تعذر تحميل حالة التكاملات.</div>'; return; }
+    const configured = r.data.configured || {};
+    list.innerHTML = INTEGRATION_KEYS.map(k => `
+      <div class="key-row">
+        <span class="key-name"><span class="dot ${configured[k.key] ? 'on' : 'off'}"></span>${k.label}</span>
+        ${configured[k.key] ? `<button class="btn-danger delBtn" data-key="${k.key}">حذف</button>` : ''}
+      </div>
+    `).join('');
+    list.querySelectorAll('.delBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.key;
+        if (!confirm('تحذفين هالإعداد؟')) return;
+        try {
+          const r2 = await apiCall('/integration-settings?key=' + encodeURIComponent(key), { method: 'DELETE', headers: authHeaders() });
+          if (r2.ok && r2.data.ok) loadIntegrations();
+        } catch {}
+      });
+    });
+  } catch (e) { if (e.message !== 'SESSION_EXPIRED') list.innerHTML = '<div class="small">تعذر الاتصال بالسيرفر.</div>'; }
+}
+
+document.getElementById('intSaveBtn').addEventListener('click', async () => {
+  const key = document.getElementById('intKey').value;
+  const value = document.getElementById('intValue').value.trim();
+  const msgEl = document.getElementById('intMsg');
+  if (!value) { showMsg(msgEl, 'err', 'اكتبي القيمة أول'); return; }
+  try {
+    const r = await apiCall('/integration-settings', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ key, value }),
+    });
+    if (r.ok && r.data.ok) {
+      showMsg(msgEl, 'ok', 'تم الحفظ ✅');
+      document.getElementById('intValue').value = '';
+      loadIntegrations();
+    } else {
+      showMsg(msgEl, 'err', r.data.message || 'تعذر الحفظ');
+    }
+  } catch (e) { if (e.message !== 'SESSION_EXPIRED') showMsg(msgEl, 'err', 'تعذر الاتصال بالسيرفر'); }
+});
+
+// جلسة موجودة أصلًا؟ (نفس مفتاح التطبيق الرئيسي)
+if (token()) {
+  document.getElementById('loginCard').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  initApp();
+}
+</script>
+</body>
+</html>

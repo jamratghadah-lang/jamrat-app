@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // التطبيق ما يسجّل دخول عبر Firebase Auth إطلاقًا — تسجيل الدخول
+    // يمر بجلسة JWT خاصة عبر admin-session.js ويُتحقق منها في كل Netlify
+    // Function عبر requireAdmin(). دوال السيرفر تستخدم Admin SDK فتتخطى
+    // هالقواعد تلقائيًا، فهذا الملف ما يأثر عليها إطلاقًا.
+    //
+    // بما إن ما فيه request.auth حقيقي من المتصفح، أي "allow if
+    // request.auth != null" ما راح يشتغل أبدًا لأي حد — عادي أو أدمن.
+    // فبدل قاعدة مزيفة توهم بالحماية، نمنع أي قراءة/كتابة مباشرة من
+    // المتصفح نهائيًا، ونخلي كل شي يمر إجباريًا عبر دوال السيرفر
+    // (events-list.js, event-status.js, event-checkin.js, ...).
+    //
+    // ملاحظة: هذا يعطّل أي مزامنة مباشرة (fbSet/fbSubscribe) كانت تُستخدم
+    // من المتصفح بملف index.html — لازم تستبدلينها بنداءات لدوال السيرفر
+    // الموجودة أصلًا وغير مستخدمة حاليًا (events-list.js وغيرها).
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
