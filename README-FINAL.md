@@ -66,3 +66,13 @@
 - integration vault and event media management
 
 Set `ADMIN_SESSION_SECRET` to a dedicated random secret. It is no longer derived from the Firebase Service Account JSON.
+
+
+## إصلاحات هذه النسخة — تشغيل الأزرار الحقيقية
+- زر «مناسبة جديدة» ينشئ مناسبة فعلية عبر `event-register` بعد تسجيل دخول الإدارة.
+- زر `Retry` يعيد إرسال الضيوف الذين حالهم `failed`.
+- زر «إرسال حقيقي» يستدعي WhatsApp أو Resend فعليًا حسب القناة المختارة، ويسجل النتيجة في `send-log`.
+- قائمة المناسبات والضيوف تُحدّث من Firestore عبر Netlify Functions بعد تسجيل الدخول، مع نسخة محلية احتياطية للواجهة.
+- تم إزالة توليد التوكن الوهمي من زر التوكن؛ الزر الآن ينشئ جلسة Admin حقيقية عبر `admin-session`.
+- تمت إضافة حفظ محلي للحالة حتى لا تختفي تغييرات الواجهة عند تحديث الصفحة.
+- تم فحص جميع Netlify Functions بـ `node --check` وفحص JavaScript الرئيسي المضمن في `index.html` بنفس الطريقة.
