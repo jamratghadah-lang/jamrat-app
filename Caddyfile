@@ -1,0 +1,21 @@
+# Caddy reverse proxy for jamratghadah.
+# Listens on :81 and forwards to the Next.js standalone server on :3000.
+#
+# SECURITY: the previous version exposed an `?XTransformPort=<n>` query
+# handler that proxied to `localhost:<n>` — a wide-open SSRF that let
+# any visitor reach Postgres (5432), Redis (6379), or any other
+# internal service. It has been removed. If you genuinely need
+# per-port proxying, configure it as a separate site block with a
+# hard-coded port (never user-controlled).
+
+:81 {
+	reverse_proxy localhost:3000 {
+		header_up Host {host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Real-IP {remote_host}
+	}
+
+	# Compression + sane cache defaults
+	encode zstd gzip
+}
